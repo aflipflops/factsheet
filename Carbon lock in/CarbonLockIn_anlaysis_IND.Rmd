@@ -83,6 +83,41 @@ save(all,file="data_IND.RData")
 load("data_IND.RData")
 ```
 
+```{r}
+# Relevant historical and bottom up data data
+# historical IEA data (PE, SE, FE,Trade), and CEDS emissions data
+setConfig(forcecache = TRUE)
+historical <- calcOutput("Historical",aggregate = T)# aggregate = T not working at the moment, use when available
+historical <- collapseNames(historical,collapsedim = 2)
+hist_IEA_CEDS <- as.data.frame(historical) 
+hist_IEA_CEDS <- hist_IEA_CEDS[,-1]
+hist_IEA_CEDS <- hist_IEA_CEDS[,-3]
+names(hist_IEA_CEDS)[3] <- "Variable"
+# historical Renewable Energy Capacity data 
+hist_IRENA_cap <- as.data.frame(calcOutput("Capacity",aggregate = T))
+hist_IRENA_cap <- hist_IRENA_cap[,-1]
+names(hist_IRENA_cap) <- names(hist_IEA_CEDS)
+# nuclear bottom-up data
+nuclear_IAEA <- as.data.frame(calcOutput("CapacityNuclear",aggregate = T))
+nuclear_IAEA <- nuclear_IAEA[,-1]
+names(nuclear_IAEA) <- names(hist_IEA_CEDS)
+# coal plants bottom up data
+coal_EndCoal <- as.data.frame(readSource("EndCoal"))
+coal_EndCoal <- coal_EndCoal[,-1]
+coal_EndCoal$Year <- 2018
+names(coal_EndCoal) <- names(hist_IEA_CEDS)
+# IEA_WEO 2016 investment costs
+capacity_costs_IEA <- as.data.frame(calcOutput("DiffInvestCosts",aggregate = T))
+capacity_costs_IEA <- capacity_costs_IEA[,-1]
+names(capacity_costs_IEA) <- names(hist_IEA_CEDS)
+# bringing all historical and bottom up data together; format- region, Variable Name, Year, Value
+hist_and_botmup <- rbind(hist_IEA_CEDS,hist_IRENA_cap,nuclear_IAEA,coal_EndCoal,capacity_costs_IEA) 
+# historical nuclear 
+save(hist_and_botmup,file="HistandBotmup.RData")
+load("HistandBotmup.RData")
+```
+
+
 ### Explanation of scenario names
 
 | Scenario name |  National Models | Global Models  |
@@ -113,7 +148,7 @@ whole <- rbind(plot1,plot1a,plot2a,plot2b)
 
 ```{r,message=FALSE,warning=FALSE}
 #plot emissions lines
-plotvar <- "Emissions|CO2"
+plotvar <- "Emissions|CO2|Energy"
 whole_a <- whole[variable==plotvar,]
 # historical emissions //India// Fossil Fuel and Industry
 setConfig(forcecache = T)
