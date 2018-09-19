@@ -26,7 +26,7 @@ library(reshape)
 library(data.table)
 ```
 
-```{r echo=FALSE,results='hide',message=FALSE}
+```{r echo=FALSE,results='hide',message=FALSE,purl=FALSE}
 
 #read in data
 # all <- invisible(fread("cdlinks_compare_20180508-032045.csv",header=TRUE)) #seems to be missing the V3 variants
@@ -111,7 +111,7 @@ plot2b <- add_column(plot2b,scen_name = "Delayed action")
 whole <- rbind(plot1,plot1a,plot2a,plot2b)
 ```
 
-```{r}
+```{r,message=FALSE,warning=FALSE}
 #plot emissions lines
 plotvar <- "Emissions|CO2"
 whole_a <- whole[variable==plotvar,]
@@ -123,7 +123,8 @@ namesofint <- getNames(historical[,,"Emi|CO2",pmatch=T])
 hist_ind <- as.data.frame(historical["IND",seq(2005,2010,5),namesofint[20]]/1000)
 
 ggplot()+
-  geom_line(data = whole_a,aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
+  # geom_line(data = whole_a,aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
+  geom_line(data = whole_a %>% filter(scen_name %in% c("NDC","NPi") ),aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
   labs(
     x = "Year" ,
     y = "CO2 Emissions of India (Gt/yr)",
@@ -135,7 +136,17 @@ ggplot()+
   # scale_colour_brewer(palette = "Set1")+
   theme_light()
   ggsave(file="CO2emi_IND_all_scen.png",width=8,height=4)
+  
+  
 ```
+
+**Observations and Discussion**
+NPi represents existing policies till 2020 and continuation of these policies after 2020. NDC represents policies mentioned in NDCs till 2030 and continuation of these policies thereafter. NDC scenarios contains NPi policies + additional policies. Since NDCs start only in 2020, both NDC and NPi should be approximately the same in 2020.
+2050 emissions are the same. 
+
+? For _REMIND_, why are NDC emissions higher in 2030 than NPi? NDC should lead to more mitigation than NPi?
+
+? Why are REMIND historical India CO2 emissions so different than historical emissions?
 
 
 #### Emissions from the Electricity sector
@@ -293,32 +304,27 @@ plotvar <- c("Capacity|Electricity|Biomass|w/ CCS",
              "Capacity|Electricity|Solar",
              "Capacity|Electricity|Wind")
 
-plot1 <- all[scenario %in% c("NPi2020_1000_V4","NPi2020_1000_V3", "INDC2030i_1000_V4","INDC2030i_1000_V3",
-                             "NPi2020_low_V3","INDC2030_low_V3") & variable %in% plotvar & period==2030]
+whole_i <- whole[variable %in% plotvar & period==2030,]
 
-plot1a <- all[scenario %in% c("NPi2020_1000_V4","NPi2020_1000_V3", "INDC2030i_1000_V4","INDC2030i_1000_V3",
-                             "NPi2020_low_V3","INDC2030_low_V3") & period==2030 & 
-               variable %in% "Capacity|Electricity|Solar|PV" &
-                model %in% c("AIM V2.1","AIM/CGE","DNE21+ V.14", "REMIND-MAgPIE 1.7-3.0")]
-plot1a$variable <- "Capacity|Electricity|Solar"
+whole_j <- whole[period==2030 & variable %in% "Capacity|Electricity|Solar|PV" & model %in% c("AIM V2.1","AIM/CGE","DNE21+ V.14", "REMIND-MAgPIE 1.7-3.0"),]
 
-plot1b <- all[scenario %in% c("NPi2020_1000_V4","NPi2020_1000_V3", "INDC2030i_1000_V4","INDC2030i_1000_V3",
-                              "NPi2020_low_V3","INDC2030_low_V3") & period==2030 & 
-                variable %in% "Capacity|Electricity|Wind|Onshore" &
-                model %in% c("DNE21+ V.14")]
-plot1b$variable <- "Capacity|Electricity|Wind"
+whole_j$variable <- "Capacity|Electricity|Solar"
 
-plot1 <- rbind(plot1,plot1a,plot1b)
+whole_k <- whole[variable %in% "Capacity|Electricity|Wind|Onshore" &
+                model %in% c("DNE21+ V.14"),]
+whole_k$variable <- "Capacity|Electricity|Wind"
 
-plot2 <- all[scenario %in% c("NPi2020_1000_V4","NPi2020_1000_V3", "INDC2030i_1000_V4","INDC2030i_1000_V3",
-                             "NPi2020_low_V3","INDC2030_low_V3") & period==2030 & 
-               variable %in% "Capacity|Electricity" ]
+whole_i <- rbind(whole_i,whole_j,whole_k)
+
+whole_l <- whole[period==2030 & variable %in% "Capacity|Electricity" ,]
+
 ggplot()+
-  geom_bar(data=plot1,aes(x=modscen,y=value/1,group=interaction(modscen,variable),fill=variable),stat="identity")+
-  scale_fill_manual(values=plotstyle(plotvar))  + xlab("Model - Scenario")+
-  geom_text(data=plot1,aes(x=modscen,y=1300,label=modscen,angle=90,hjust="right"),color="red",size=2.5)+
-  geom_point(data=plot2,aes(x=modscen,y=value))+ylim(0,1300)+
-  theme_bw()+ylab("Power Capacity (GW)")
+  geom_bar(data=whole_i,aes(x=model,y=value,group=interaction(scen_name,variable,model),fill=variable),stat="identity")+
+  scale_fill_manual(values=plotstyle(plotvar))+
+  xlab("Model - Scenario")+
+  geom_text(data=whole_i,aes(x=model,y=1200,label=scen_name,hjust="right"),color="red",size=2.5)+
+  ylim(0,1300)+ theme_bw()+ylab("Power Capacity (GW)")+coord_flip()
+# geom_point(data=whole_l,aes(x=modscen,y=value))
 ggsave(file="Capacity_IND.png",width=8,height=5)
 
 ```
