@@ -1,6 +1,6 @@
 ---
 title: "Carbon Lock-in task CD LINKS"
-author: "Aman Malik and Chrstoph Bertram"
+author: "Aman Malik and Chirstoph Bertram"
 date: "17 September 2018"
 output: html_document
 ---
@@ -84,34 +84,47 @@ load("data_IND.RData")
 ```
 
 ```{r}
-# Relevant historical and bottom up data data
+# Relevant historical and bottom-up data 
 # historical IEA data (PE, SE, FE,Trade), and CEDS emissions data
 setConfig(forcecache = TRUE)
-historical <- calcOutput("Historical",aggregate = T)# aggregate = T not working at the moment, use when available
-historical <- collapseNames(historical,collapsedim = 2)
+historical <- calcOutput("Historical",aggregate = F)# aggregate = T not working at the moment, use when available
+historical <- collapseNames(historical,collapsedim = 1)
 hist_IEA_CEDS <- as.data.frame(historical) 
 hist_IEA_CEDS <- hist_IEA_CEDS[,-1]
-hist_IEA_CEDS <- hist_IEA_CEDS[,-3]
-names(hist_IEA_CEDS)[3] <- "Variable"
+# Format "Region"   "Year"  "Source"   "Variable" "Value"
+names(hist_IEA_CEDS)[c(3,4)] <- c("Source","Variable")
 # historical Renewable Energy Capacity data 
 hist_IRENA_cap <- as.data.frame(calcOutput("Capacity",aggregate = T))
 hist_IRENA_cap <- hist_IRENA_cap[,-1]
+hist_IRENA_cap$Source <- "IRENA"
+hist_IRENA_cap <- hist_IRENA_cap[,c(1,2,5,3,4)]
 names(hist_IRENA_cap) <- names(hist_IEA_CEDS)
+
 # nuclear bottom-up data
 nuclear_IAEA <- as.data.frame(calcOutput("CapacityNuclear",aggregate = T))
 nuclear_IAEA <- nuclear_IAEA[,-1]
+nuclear_IAEA$Source <- "IEA"
+nuclear_IAEA <- nuclear_IAEA[,c(1,2,5,3,4)]
 names(nuclear_IAEA) <- names(hist_IEA_CEDS)
 # coal plants bottom up data
 coal_EndCoal <- as.data.frame(readSource("EndCoal"))
 coal_EndCoal <- coal_EndCoal[,-1]
-coal_EndCoal$Year <- 2018
+coal_EndCoal$Year <- "2018"
+coal_EndCoal$Source <- "EndCoal"
+coal_EndCoal <- coal_EndCoal[,c(1,2,5,3,4)]
 names(coal_EndCoal) <- names(hist_IEA_CEDS)
+# coal_EndCoal$Value <- as.character(coal_EndCoal$Value)
 # IEA_WEO 2016 investment costs
 capacity_costs_IEA <- as.data.frame(calcOutput("DiffInvestCosts",aggregate = T))
 capacity_costs_IEA <- capacity_costs_IEA[,-1]
+capacity_costs_IEA$Source <- "IEA_WEO"
+capacity_costs_IEA <- capacity_costs_IEA[,c(1,2,5,3,4)]
 names(capacity_costs_IEA) <- names(hist_IEA_CEDS)
+
 # bringing all historical and bottom up data together; format- region, Variable Name, Year, Value
-hist_and_botmup <- rbind(hist_IEA_CEDS,hist_IRENA_cap,nuclear_IAEA,coal_EndCoal,capacity_costs_IEA) 
+hist_and_botmup <- rbind(hist_IEA_CEDS,hist_IRENA_cap,nuclear_IAEA,capacity_costs_IEA,coal_EndCoal)   
+
+
 # historical nuclear 
 save(hist_and_botmup,file="HistandBotmup.RData")
 load("HistandBotmup.RData")
@@ -122,44 +135,47 @@ load("HistandBotmup.RData")
 
 | Scenario name |  National Models | Global Models  |
 |---------------|------------------|----------------|
-|NPi2020_1000_V4 and NPi2020_1000_V3 | Extrapolating currently implemented national policies after 2020 till 2050  | Same as national models except extrapolation till 2100
-|INDC2030i_1000_V4 and INDC2030i_1000_V3  | Extrapolating NDCs (includes currently implemented policies) after 2030 till 2050 |Same as national models except extrapolation till 2100
-|NPi2020_low_V3 - **Early action**|Target for cumulative national emissions (budget) from 2011-2050|Target for cumulative global emissions from 2011-2100
-|INDC2030_low_V3 - **Delay** | Same as Early action target|Same as Early action target
-scenario
+|Early action|Cumulative national emissions (budget/target) from 2011-2050, climate policy starts in 2020|Cumulative global emissions target of 1000GtC, climate policy starts in 2020|
+|Delayed action|Cumulative national emissions (budget/target) from 2011-2050, climate policy starts in 2030|Cumulative global emissions target of 1000GtC, climate policy starts in 2030|
+
+
+<!-- |NPi2020_1000_V4 and NPi2020_1000_V3 | Extrapolating currently implemented national policies after 2020 till 2050  | Same as national models except extrapolation till 2100 -->
+<!-- |INDC2030i_1000_V4 and INDC2030i_1000_V3  | Extrapolating NDCs (includes currently implemented policies) after 2030 till 2050 |Same as national models except extrapolation till 2100 -->
+<!-- |NPi2020_low_V3 - **Early action**|Target for cumulative national emissions (budget) from 2011-2050|Target for cumulative global emissions from 2011-2100 -->
+<!-- |INDC2030_low_V3 - **Delay** | Same as Early action target|Same as Early action target -->
+
 
 ##### CO2 Emissions
-```{r emissions, fig.asp=0.618}
+```{r emissions}
 # I want to remove the technical names of the scenarios and replace them with understandable names. Moreover, I want to preserve the bigger dataset and not break them into smaller datasets. Then I can plot emissions based on scenarios and models simultaneously.
 
-# NPi Emissions
-plot1 <- all[all$scenario %in% c("NPi2020_1000_V4","NPi2020_1000_V3"),]
-plot1 <- add_column(plot1,scen_name = "NPi")
-# NDC Emissions
-plot1a <- all[all$scenario %in% c("INDC2030i_1000_V4","INDC2030i_1000_V3"),]
-plot1a <-  add_column(plot1a,scen_name = "NDC")
-# Early and Delay scenarios
-plot2a <- all[all$scenario %in% "NPi2020_low_V3",]
-plot2a <- add_column(plot2a,scen_name = "Early action")
-plot2b <- all[all$scenario %in% "INDC2030_low_V3",]
-plot2b <- add_column(plot2b,scen_name = "Delayed action")
-whole <- rbind(plot1,plot1a,plot2a,plot2b)
+# Early scenario
+plot_early <- all[all$scenario %in% c("NPi2020_1000_V4","NPi2020_1000_V3","NPi2020_low_V3"),]
+plot_early <- add_column(plot_early,scen_name = "Early action")
+# Delay scenario
+plot_delay   <- all[all$scenario %in% c("INDC2030i_1000_V4","INDC2030i_1000_V3","INDC2030_low_V3"),]
+plot_delay <-  add_column(plot_delay,scen_name = "Delayed action")
+whole <- rbind(plot_early,plot_delay)
+
 ```
 
 ```{r,message=FALSE,warning=FALSE}
 #plot emissions lines
-plotvar <- "Emissions|CO2|Energy"
+plotvar <- "Emissions|CO2"
 whole_a <- whole[variable==plotvar,]
-# historical emissions //India// Fossil Fuel and Industry
-setConfig(forcecache = T)
-historical <- calcOutput("Historical",aggregate = F)
-# all variables of interest, containing term "Emi|CO2"
-namesofint <- getNames(historical[,,"Emi|CO2",pmatch=T])
-hist_ind <- as.data.frame(historical["IND",seq(2005,2010,5),namesofint[20]]/1000)
 
+whole_a <- whole_a %>% 
+  filter(period!=2005,variable=="Emissions|CO2")%>%
+  group_by(model,scenario) %>% 
+  mutate(int=cumsum(value))
+# historical emissions //India// Fossil Fuel and Industry
+filtered <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="Emi|CO2|Energy (Mt CO2/yr)") 
+```
+
+
+```{r}
 ggplot()+
-  # geom_line(data = whole_a,aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
-  geom_line(data = whole_a %>% filter(scen_name %in% c("NDC","NPi") ),aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
+  geom_line(data = whole_a %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
   labs(
     x = "Year" ,
     y = "CO2 Emissions of India (Gt/yr)",
@@ -167,9 +183,9 @@ ggplot()+
     linetype = "Scenario Type"
   ) +
   coord_cartesian(xlim = c(2005,2050),ylim=c(0,8)) +
-  annotate(geom = "point",x = c(2005,2010),y=hist_ind$Value)+
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)
   # scale_colour_brewer(palette = "Set1")+
-  theme_light()
+  
   ggsave(file="CO2emi_IND_all_scen.png",width=8,height=4)
   
   
@@ -274,7 +290,8 @@ ggsave(file="UnabatedCoal_IND.png",width=8,height=4)
 #plot Coal power capacity
 plotvar <- "Capacity|Electricity|Coal|w/o CCS"
 whole_f <- whole[variable==plotvar,]    
-
+coal <- hist_and_botmup%>%
+  filter(grepl("Operating|Constr|Announced",Variable),Region=="IND")
 ggplot()+
   geom_line(data = whole_f,aes(x=period,y=value,group=interaction(model,scen_name),color=model)) +
   labs(
@@ -320,6 +337,10 @@ ggplot()+
   theme_bw()+ylab("Secondary Energy Electricity (EJ/yr)")
 ```
 
+```{r}
+head(hist_and_botmup%>%
+  filter(grepl("Operating|Constr|Announced",Variable),Region=="IND"))
+```
 
 # Power capacity in 2030
 ```{r}
@@ -340,7 +361,8 @@ plotvar <- c("Capacity|Electricity|Biomass|w/ CCS",
              "Capacity|Electricity|Wind")
 
 whole_i <- whole[variable %in% plotvar & period==2030,]
-
+coal <- hist_and_botmup%>%
+  filter(grepl("Operating|Constr|Announced",Variable),Region=="IND")
 whole_j <- whole[period==2030 & variable %in% "Capacity|Electricity|Solar|PV" & model %in% c("AIM V2.1","AIM/CGE","DNE21+ V.14", "REMIND-MAgPIE 1.7-3.0"),]
 
 whole_j$variable <- "Capacity|Electricity|Solar"
@@ -358,7 +380,7 @@ ggplot()+
   scale_fill_manual(values=plotstyle(plotvar))+
   xlab("Model - Scenario")+
   geom_text(data=whole_i,aes(x=model,y=1200,label=scen_name,hjust="right"),color="red",size=2.5)+
-  ylim(0,1300)+ theme_bw()+ylab("Power Capacity (GW)")+coord_flip()
+  ylim(0,1300)+ theme_bw()+ylab("Power Capacity (GW)")+ 
 # geom_point(data=whole_l,aes(x=modscen,y=value))
 ggsave(file="Capacity_IND.png",width=8,height=5)
 
