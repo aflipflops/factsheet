@@ -78,6 +78,9 @@ v3scens <- grep("_V3",unique(all$scenario),value=T)
 v4scens <- grep("_V4",unique(all$scenario),value=T)
 v4mods <- unique(all[scenario %in% v4scens]$model)
 all <- rbind(all[!model %in% v4mods],all[model %in% v4mods & scenario %in% v4scens])
+
+all <- all %>% 
+  mutate(model_scope=ifelse(model=="India MARKAL"|model=="AIM/Enduse 3.0","national","global"))
 fwrite(all,"")
 save(all,file="data_IND.RData")
 load("data_IND.RData")
@@ -139,13 +142,6 @@ load("HistandBotmup.RData")
 |Delayed action|Cumulative national emissions (budget/target) from 2011-2050, climate policy starts in 2030|Cumulative global emissions target of 1000GtC, climate policy starts in 2030|
 
 
-<!-- |NPi2020_1000_V4 and NPi2020_1000_V3 | Extrapolating currently implemented national policies after 2020 till 2050  | Same as national models except extrapolation till 2100 -->
-<!-- |INDC2030i_1000_V4 and INDC2030i_1000_V3  | Extrapolating NDCs (includes currently implemented policies) after 2030 till 2050 |Same as national models except extrapolation till 2100 -->
-<!-- |NPi2020_low_V3 - **Early action**|Target for cumulative national emissions (budget) from 2011-2050|Target for cumulative global emissions from 2011-2100 -->
-<!-- |INDC2030_low_V3 - **Delay** | Same as Early action target|Same as Early action target -->
-
-
-##### CO2 Emissions
 ```{r emissions}
 # I want to remove the technical names of the scenarios and replace them with understandable names. Moreover, I want to preserve the bigger dataset and not break them into smaller datasets. Then I can plot emissions based on scenarios and models simultaneously.
 
@@ -159,37 +155,63 @@ whole <- rbind(plot_early,plot_delay)
 
 ```
 
-```{r,message=FALSE,warning=FALSE}
+##### CO2 Emissions
+```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
 #plot emissions lines
 plotvar <- "Emissions|CO2"
-whole_a <- whole[variable==plotvar,]
+whole_a <- whole[whole$variable==plotvar,]
 
-whole_a <- whole_a %>% 
-  filter(period!=2005,variable=="Emissions|CO2")%>%
-  group_by(model,scenario) %>% 
-  mutate(int=cumsum(value))
 # historical emissions //India// Fossil Fuel and Industry
 filtered <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="Emi|CO2|Energy (Mt CO2/yr)") 
-```
 
-
-```{r}
 ggplot()+
-  geom_line(data = whole_a %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
+  geom_line(data = whole_a , aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+ 
   labs(
     x = "Year" ,
     y = "CO2 Emissions of India (Gt/yr)",
-    color = "Model name",
+    color = "Model Scope",
     linetype = "Scenario Type"
+
   ) +
+  theme_bw()+ 
   coord_cartesian(xlim = c(2005,2050),ylim=c(0,8)) +
-  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)
-  # scale_colour_brewer(palette = "Set1")+
-  
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)+
+  scale_colour_brewer(palette = "Set1")+
+  ggsave(file="CO2emi_IND_nat_glo_scen.png",width=8,height=4)
+
+ggplot()+
+  geom_line(data = whole_a %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
+geom_line(data = whole_a %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) + 
+  labs(
+    x = "Year" ,
+    y = "CO2 Emissions of India (Gt/yr)",
+    color = "Global model",
+    linetype = "Scenario Type",
+    alpha="National model"
+  ) +
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050),ylim=c(0,8)) +
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)+
+  scale_colour_brewer(palette = "Set1")+
+  scale_alpha_discrete(range = c(0.95, 0.65))
   ggsave(file="CO2emi_IND_all_scen.png",width=8,height=4)
   
-  
 ```
+**What I want to show in this graph?**
+
+I want to show that there are national and global models, that these are emission trajectories till 2050. There are two scenarios, early action and delayed action. One also gets the idea that there are 2 national models, and that there are 4 lines because of the different scenarios. Calculating no. of global models is difficult (one would have to see all the bold lines. 
+The two black dots are the historical emissions only from the energy sector (see how to get the total emissions). 
+- The trajectories of national and global models clearly stand out. There is one national model, we don't know which one yet, whose emission profiles is on a higher side of the global emission trakectories, although it is still not the highest.
+- Emissions decrease for most global models in both scenarios, whereas for national models they stay the same or even increase (compared to the peak emissions). note, one national model has no peak emissions. 
+
+**What next to do?**
+- How to measure how flexible is the model to emission reduction?
+- Maybe calculate the carbon budget between 2010 and 2050 for all models, for both scenarios
+
+What information do I want to convey in this graph?
+- show all emission trajectories, that there are national and global models, and that there are two scenarios- early and delayed.
+So, this will be my first almost finished plot which I am going to use for my discussion. It shows the total CO2 emissions of India in Gt/yr across 9 Global models and 2 national Models. The globel models are coloured, while the national models are black and grey. #The grey lines are unfortunately not very visible. Maybe i can change this a bit by choosing a different backgorund theme(helped  a bit but the grey line is sjust too light, darken it somehow)# Moreover, it also shows the scenarios divided by early action and delayed action, conveying when the mitigation policies start (2020 and 2030 respectively). 
 
 **Observations and Discussion**
 NPi represents existing policies till 2020 and continuation of these policies after 2020. NDC represents policies mentioned in NDCs till 2030 and continuation of these policies thereafter. NDC scenarios contains NPi policies + additional policies. Since NDCs start only in 2020, both NDC and NPi should be approximately the same in 2020.
@@ -199,46 +221,134 @@ NPi represents existing policies till 2020 and continuation of these policies af
 
 ? Why are REMIND historical India CO2 emissions so different than historical emissions?
 
+#### Cumulative Emissions 2010-2050
+
+```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+whole_b <- whole_a %>% 
+  filter(period>2005 & period<2055) %>% 
+  group_by(model,scen_name) %>% 
+  mutate(cumsum=cumsum(value)/1000) %>% 
+  arrange(cumsum,desc(cumsum))
+
+
+# try 1
+ggplot()+
+  geom_bar(data=whole_b %>% filter(period==2050) , aes(x=reorder(model,cumsum),y=cumsum, group=interaction(model,scen_name),fill=scen_name,alpha=model_scope),position="dodge", stat = "identity")+
+   
+  labs(
+    x = "Model name" ,
+    y = "Cumulative Emissions of India (2011-2050) (Gt/yr)",
+    fill = "Scenario Type",
+    alpha = "Model Scope"
+ 
+  ) +
+  theme_bw()+
+  coord_flip()+
+  scale_alpha_discrete(range = c(0.95, 0.55))
+
+# try 2
+# ggplot()+
+#   geom_point(data=whole_b %>% filter(period==2050 & model_scope=="global"),aes(x=model,y=cumsum,color=scen_name))
+
+```
+Global models have a 1000 Gt carbon budget (mitigation policy for 2C  between 2011-2100. They run the global models and get particular emission trajectories for India. These models minimise costs, so often developing nations, where mitigation is cheaper and most of the infrastructure has yet to be built get a disproportionate amount of the mitigation effort.  For the well-below 2 °C target, cumulative 2011−2100 net emissions are limited to 1000 Gt CO2, whereas the 1.5 °C scenario has a budget of 400 GtCO2. These budget values represent a likelihood of 66% of staying below 2 °C throughout the 21st century in the 'well below 2 °C' scenarios, as well as 66% of staying below 1.5 °C after 2100 in the 1.5 °C scenario
+
+For the global models, the carbon budget for both the early and delay mitigation scenarios is the same, but till 2100 (and hence it cannot be seen till 2050). For them, the cumulative emissions in 2050 are higher. That the emissions rise without a cliamte policy in place is no surprise, but what is the cause of these rise in emissions?
+
+The national budgets were decided after discussion with the global teams- The global teams gave them a number that they could work with?. 
+
+? Recapitulate how the national budgets were calculated
+
+
+Each of the two CO2 budget are achieved by iteratively adjusting a global carbon price that is assumed to grow with 5% p.a. until 2060 and linearly thereafter. Regionally fragmented carbon prices in 2020 (for the cost-effective scenarios) or 2030 (for the other scenarios) converge to the globally harmonized carbon price over a 20 year period (see figure S2 in the supplementary material). GHGs other than CO2 are priced equivalently to CO2 throughout the 21st century based on 100 year global warming potentials from IPCC's Fifth Assessment Report.
+
 
 #### Emissions from the Electricity sector
-```{r}
+```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
 #plot emissions electricity sector 
 plotvar <- "Emissions|CO2|Energy|Supply|Electricity"
-whole_b <- whole[variable==plotvar,]
-hist_ind <- as.data.frame(historical["IND",seq(2005,2015,5),namesofint[16]]/1000)
+whole_c <- whole[whole$variable==plotvar,]
+# historical emissions //India// Fossil Fuel and Industry
+filtered <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010,2015),Variable =="Emi|CO2|Energy|Supply|Electricity (Mt CO2/yr)") 
 
 ggplot()+
-  geom_line(data = whole_b,aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
+  geom_line(data = whole_c , aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+ 
   labs(
     x = "Year" ,
     y = "CO2 Emissions Electricity (Gt/yr)",
-    color = "Model name",
-    linetype = "Scenario Type"
-  ) +
-  coord_cartesian(xlim = c(2005,2050),ylim=c(-0.5,2.5)) +
-  annotate(geom = "point",x = c(2005,2010,2015),y=hist_ind$Value)+
-  # scale_colour_brewer(palette = "Set1")+
-  theme_light()
+    color = "Model Scope",
+    linetype = "Scenario Type")+
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050),ylim=c(-1.0,2.5)) +
+  annotate(geom = "point",x = c(2005,2010,2015),y=filtered$Value/1000)+
+  scale_colour_brewer(palette = "Set1")
+ ggsave(file="CO2emi_elec_nat_glo_IND.png",width=8,height=4)
+
+ggplot()+
+  geom_line(data = whole_c %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
+geom_line(data = whole_c %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) + 
+  labs(
+    x = "Year" ,
+    y = "CO2 Emissions Electricity (Gt/yr)",
+    color = "Global model",
+    linetype = "Scenario Type",
+    alpha="National model"
+  ) +  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050),ylim=c(-1.0,2.5)) +
+  annotate(geom = "point",x = c(2005,2010,2015),y=filtered$Value/1000)+
+  scale_colour_brewer(palette = "Set1")+
+  scale_alpha_discrete(range = c(0.95, 0.65))
+
   ggsave(file="CO2emi_elec_IND.png",width=8,height=4)
+
 ```
 
 #### Final Energy of Electricity
-```{r}
+```{r,,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+
 plotvar <- "Final Energy|Electricity"
-whole_c <- whole[variable==plotvar,]
-hist_ind <- as.data.frame(historical["IND",c(2005,2010),"historical.IEA.FE|Electricity (EJ/yr)"])
+whole_d <- whole[whole$variable==plotvar,]
+filtered <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="FE|Electricity (EJ/yr)") 
+
 ggplot()+
-  geom_line(data = whole_c,aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
+  geom_line(data = whole_d , aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+   labs(
+    x = "Year" ,
+    y = "Final Energy Electricity (EJ/yr)",
+    color = "Model Scope",
+    linetype = "Scenario Type")+
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050),ylim=c(0,0.04))+ 
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)
+
+ggplot()+
+  geom_line(data = whole_d %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
+geom_line(data = whole_d %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) + 
   labs(
     x = "Year" ,
     y = "Final Energy Electricity (EJ/yr)",
-    color = "Model name",
-    linetype = "Scenario Type"
-  ) +
-  coord_cartesian(xlim = c(2005,2050),ylim=c(0,30)) +
-  annotate(geom = "point",x = c(2005,2010),y=hist_ind$Value)+
-  # scale_colour_brewer(palette = "Set1")+
-  theme_light()
+    color = "Global model",
+    linetype = "Scenario Type",
+    alpha="National model"
+  ) +  theme_bw()+ 
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)+
+  scale_colour_brewer(palette = "Set1")+
+  coord_cartesian(xlim = c(2005,2050),ylim=c(0,0.04))+ 
+  scale_alpha_discrete(range = c(0.95, 0.65))+
+  # coord_cartesian(xlim = c(2005,2050))
+  ggsave(file="FEelec_IND.png",width=8,height=4)
+  # geom_line(data = whole_d,aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
+  # labs(
+  #   x = "Year" ,
+  #   y = "Final Energy Electricity (EJ/yr)",
+  #   color = "Model name",
+  #   linetype = "Scenario Type"
+  # ) +
+  # coord_cartesian(xlim = c(2005,2050),ylim=c(0,30)) +
+  # annotate(geom = "point",x = c(2005,2010),y=hist_ind$Value)+
+  # # scale_colour_brewer(palette = "Set1")+
+  # theme_light()
   ggsave(file="FEelec_IND.png",width=8,height=4)
 ```
 
