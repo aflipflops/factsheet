@@ -154,6 +154,29 @@ plot_delay <-  add_column(plot_delay,scen_name = "Delayed action")
 whole <- rbind(plot_early,plot_delay)
 
 ```
+### writing a generic function for a line-type ggplot
+```{r}
+line_type <- function(data_s){
+  j <- ggplot()+
+  geom_line(data = data_s %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
+geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name))+
+    labs(
+    x = "Year" ,
+    y = paste(data_s$variable,"(",data_s$unit,")"),
+    color = "Global Model",
+    alpha="National Model",
+    linetype = "Scenario Type")+
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050))+
+  scale_colour_brewer(palette = "Set1")+
+  scale_alpha_discrete(range = c(0.95, 0.65))
+  
+  }
+
+line_type(whole_a)
+```
+
+
 
 ##### CO2 Emissions
 ```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
@@ -180,21 +203,8 @@ ggplot()+
   scale_colour_brewer(palette = "Set1")+
   ggsave(file="CO2emi_IND_nat_glo_scen.png",width=8,height=4)
 
-ggplot()+
-  geom_line(data = whole_a %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
-geom_line(data = whole_a %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) + 
-  labs(
-    x = "Year" ,
-    y = "CO2 Emissions of India (Gt/yr)",
-    color = "Global model",
-    linetype = "Scenario Type",
-    alpha="National model"
-  ) +
-  theme_bw()+ 
-  coord_cartesian(xlim = c(2005,2050),ylim=c(0,8)) +
-  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)+
-  scale_colour_brewer(palette = "Set1")+
-  scale_alpha_discrete(range = c(0.95, 0.65))
+  line_type(whole_a) +
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value)
   ggsave(file="CO2emi_IND_all_scen.png",width=8,height=4)
   
 ```
@@ -270,6 +280,10 @@ plotvar <- "Emissions|CO2|Energy|Supply|Electricity"
 whole_c <- whole[whole$variable==plotvar,]
 # historical emissions //India// Fossil Fuel and Industry
 filtered <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010,2015),Variable =="Emi|CO2|Energy|Supply|Electricity (Mt CO2/yr)") 
+# share is the share of electricity emissions to total emissions
+whole_c <- whole_c %>% 
+  mutate(share=value/whole_a$value) %>% 
+  filter(period<=2050) 
 
 ggplot()+
   geom_line(data = whole_c , aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
@@ -299,10 +313,50 @@ geom_line(data = whole_c %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0
   annotate(geom = "point",x = c(2005,2010,2015),y=filtered$Value/1000)+
   scale_colour_brewer(palette = "Set1")+
   scale_alpha_discrete(range = c(0.95, 0.65))
-
   ggsave(file="CO2emi_elec_IND.png",width=8,height=4)
-
 ```
+  
+  
+```{r}
+  ggplot()+
+  geom_line(data = whole_c %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=share,group=interaction(model,scen_name),linetype=scen_name,size=model)) +
+geom_line(data = whole_c %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=share,group=interaction(model,scen_name),color=model,linetype=scen_name)) + 
+  labs(
+    x = "Year" ,
+    y = "Share of Electricity to total CO2 Emissions",
+    color = "Global model",
+    linetype = "Scenario Type",
+    size="National model"
+  ) +  theme_bw()+ 
+  scale_colour_brewer(palette = "Set1")+
+  coord_cartesian(xlim = c(2005,2050),ylim=c(-0.4,1))+
+  scale_size_discrete(range = c(0.95, 0.65))
+ggsave(file="CO2emi_elec_share_IND.png",width=8,height=4)
+
+ggplot()+
+  geom_bar(data=whole_c %>% filter(period==2010),aes(x=reorder(model,share),y=share, group=interaction(model,scen_name),fill=scen_name,alpha=model_scope),position="dodge", stat = "identity")+coord_flip()+
+  scale_alpha_discrete(range = c(0.95, 0.65))+
+  labs(
+    x = "Year" ,
+    y = "CO2 Emissions Electricity (Gt/yr)")
+
+ggplot()+
+  geom_bar(data = whole_c %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=share,group=interaction(model,scen_name),fill=model_scope),stat = "identity") +
+geom_bar(data = whole_c %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=share,group=interaction(model,scen_name),fill=model_scope),stat = "identity")+
+  labs(
+    x = "Year" ,
+    y = "CO2 Emissions Electricity (Gt/yr)",
+    color = "Global model",
+    linetype = "Scenario Type",
+    alpha="National model"
+  ) +  theme_bw()
+  
+```
+
+
+
+
+
 
 #### Final Energy of Electricity
 ```{r,,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
@@ -312,7 +366,7 @@ whole_d <- whole[whole$variable==plotvar,]
 filtered <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="FE|Electricity (EJ/yr)") 
 
 ggplot()+
-  geom_line(data = whole_d , aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+  geom_line(data = whole_d , aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
    labs(
     x = "Year" ,
     y = "Final Energy Electricity (EJ/yr)",
@@ -320,35 +374,25 @@ ggplot()+
     linetype = "Scenario Type")+
   theme_bw()+ 
   coord_cartesian(xlim = c(2005,2050),ylim=c(0,0.04))+ 
-  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value)
 
 ggplot()+
-  geom_line(data = whole_d %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
-geom_line(data = whole_d %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value/1000,group=interaction(model,scen_name),color=model,linetype=scen_name)) + 
+  geom_line(data = whole_d %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,size=model)) +
+geom_line(data = whole_d %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name)) + 
   labs(
     x = "Year" ,
     y = "Final Energy Electricity (EJ/yr)",
     color = "Global model",
     linetype = "Scenario Type",
-    alpha="National model"
+    size="National model"
   ) +  theme_bw()+ 
-  annotate(geom = "point",x = c(2005,2010),y=filtered$Value/1000)+
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value)+
   scale_colour_brewer(palette = "Set1")+
   coord_cartesian(xlim = c(2005,2050),ylim=c(0,0.04))+ 
-  scale_alpha_discrete(range = c(0.95, 0.65))+
+  scale_size_discrete(range = c(0.95, 0.65))+
   # coord_cartesian(xlim = c(2005,2050))
   ggsave(file="FEelec_IND.png",width=8,height=4)
-  # geom_line(data = whole_d,aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name)) +
-  # labs(
-  #   x = "Year" ,
-  #   y = "Final Energy Electricity (EJ/yr)",
-  #   color = "Model name",
-  #   linetype = "Scenario Type"
-  # ) +
-  # coord_cartesian(xlim = c(2005,2050),ylim=c(0,30)) +
-  # annotate(geom = "point",x = c(2005,2010),y=hist_ind$Value)+
-  # # scale_colour_brewer(palette = "Set1")+
-  # theme_light()
+  
   ggsave(file="FEelec_IND.png",width=8,height=4)
 ```
 
@@ -356,54 +400,71 @@ geom_line(data = whole_d %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0
 ```{r}
 #plot capital cost
 plotvar <- "Capital Cost|Electricity|Solar|PV"
-whole_d <- whole[variable==plotvar,]
+whole_e <- whole[whole$variable==plotvar,]
 localrate = 0.015 #https://www.xe.com/currencycharts/?from=INR&to=USD&view=10Y
-whole_d[model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_d[model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
+whole_e[whole_e$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_e[whole_e$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
+filtered <- hist_and_botmup %>% filter(Region=="IND", Year %in% seq(2015,2040,5),Variable =="spv",Source=="IEA_WEO") 
 
 ggplot()+
-  geom_line(data = whole_d,aes(x=period,y=value,group=interaction(model,scen_name),color=model)) +
+  geom_line(data = whole_e,aes(x=period,y=value,group=interaction(model,scen_name),color=model,size=model_scope)) +
   labs(
     x = "Year" ,
     y = "Tech Cost PV ($/W)",
     color = "Model name",
     linetype = "Scenario Type"
   ) +
+  scale_size_discrete(range = c(0.65, 0.95))+
   coord_cartesian(xlim = c(2005,2050)) +
+  annotate(geom = "point",x = seq(2015,2040,5),y=filtered$Value)
   # scale_colour_brewer(palette = "Set1")+
   theme_light()
 ggsave(file="CapCostPV_IND.png",width=8,height=4)
 ```
+? historical PV costs
 
 #### Secondary Energy from Coal 
 ```{r}
 plotvar <- "Secondary Energy|Electricity|Coal|w/o CCS"
-whole_e <- whole[variable==plotvar,]    
-hist_ind <- as.data.frame(historical["IND",c(2005,2010),"historical.IEA.SE|Electricity|Coal (EJ/yr)"])
-hist_ind$Year <-as.numeric(as.character(hist_ind$Year))
+whole_f <- whole[whole$variable==plotvar,]    
+filtered <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010), Variable =="SE|Electricity|Coal (EJ/yr)")
+
 ggplot()+
-  geom_line(data = whole_e,aes(x=period,y=value,group=interaction(model,scen_name),color=model)) +
+  geom_line(data = whole_f , aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+   labs(
+    x = "Year" ,
+    y = "Secondary Energy Electricity (EJ/yr)",
+    color = "Model Scope",
+    linetype = "Scenario Type")+
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050))+ 
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value)
+ ggsave(file="UnabatedCoal_IND.png",width=8,height=4)
+
+ggplot()+
+  geom_line(data = whole_f %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
+geom_line(data = whole_f %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name)) + 
   labs(
     x = "Year" ,
-    y = "Unabated Coal Power (EJ/yr)",
-    color = "Model name",
-    linetype = "Scenario Type"
-  ) + 
+    y = "Seconda Energy Electricity (EJ/yr)",
+    color = "Global model",
+    linetype = "Scenario Type",
+    alpha="National model"
+  ) +  theme_bw()+ 
   coord_cartesian(xlim = c(2005,2050)) +
-  # geom_point(data=hist_ind,aes(x = Year,y = Value),color=Value)+
-  annotate(geom = "point",x = c(2005,2010),y=hist_ind$Value)+
-  # scale_colour_brewer(palette = "Set1")+
-  theme_light()
-ggsave(file="UnabatedCoal_IND.png",width=8,height=4)
+  annotate(geom = "point",x = c(2005,2010),y=filtered$Value)+
+  scale_colour_brewer(palette = "Set1")+
+  scale_alpha_discrete(range = c(0.95, 0.65))
+
 ```
 #### Coal Power Capacity
 ```{r}
 #plot Coal power capacity
 plotvar <- "Capacity|Electricity|Coal|w/o CCS"
-whole_f <- whole[variable==plotvar,]    
-coal <- hist_and_botmup%>%
+whole_g <- whole_g[whole_g$variable==plotvar,]    
+filtered <- hist_and_botmup%>%
   filter(grepl("Operating|Constr|Announced",Variable),Region=="IND")
 ggplot()+
-  geom_line(data = whole_f,aes(x=period,y=value,group=interaction(model,scen_name),color=model)) +
+  geom_line(data = whole_g,aes(x=period,y=value,group=interaction(model,scen_name),color=model)) +
   labs(
     x = "Year" ,
     y = "Unabated Coal Power (GW)",
@@ -415,6 +476,9 @@ ggplot()+
   theme_light()
 ggsave(file="UnabatedCoalGW_IND.png",width=8,height=4)
 ```
+
+
+
 
 
 ```{r}
