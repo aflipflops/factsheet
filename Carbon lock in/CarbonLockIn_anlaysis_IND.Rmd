@@ -157,7 +157,7 @@ whole <- rbind(plot_early,plot_delay)
 #### Cumulative Emissions 2010-2050
 
 ```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
-whole_b <- whole_a %>% 
+whole_b <- whole_emi %>% 
   filter(period>2005 & period<2055) %>% 
   group_by(model,scen_name) %>% 
   mutate(cumsum=cumsum(value)/1000) %>% 
@@ -166,8 +166,7 @@ whole_b <- whole_a %>%
 
 # try 1
 ggplot()+
-  geom_bar(data=whole_b %>% filter(period==2050) , aes(x=reorder(model,cumsum),y=cumsum, group=interaction(model,scen_name),fill=scen_name,alpha=model_scope),position="dodge", stat = "identity")+
-   
+  geom_bar(data=whole_b %>% filter(period==2050) , aes(x=reorder(model,cumsum),y=cumsum, group=interaction(model,scen_name),fill=scen_name),position="dodge", stat = "identity")+
   labs(
     x = "Model name" ,
     y = "Cumulative Emissions of India (2011-2050) (Gt/yr)",
@@ -176,8 +175,9 @@ ggplot()+
  
   ) +
   theme_bw()+
-  coord_flip()+
-  scale_alpha_discrete(range = c(0.95, 0.55))
+  
+  #scale_alpha_discrete(range = c(0.95, 0.55))
+  facet_grid(~model_scope,scales="free",space = "free_x")
 
 # try 2
 # ggplot()+
