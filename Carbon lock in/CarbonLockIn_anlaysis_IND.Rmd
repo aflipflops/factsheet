@@ -3,6 +3,7 @@ title: "Carbon Lock-in task CD LINKS"
 author: "Aman Malik and Chirstoph Bertram"
 date: "17 September 2018"
 output: html_document
+code_folding: "hide"
 ---
 
 
@@ -142,7 +143,7 @@ load("HistandBotmup.RData")
 |Delayed action|Cumulative national emissions (budget/target) from 2011-2050, climate policy starts in 2030|Cumulative global emissions target of 1000GtC, climate policy starts in 2030|
 
 
-```{r emissions}
+```{r all_data}
 # I want to remove the technical names of the scenarios and replace them with understandable names. Moreover, I want to preserve the bigger dataset and not break them into smaller datasets. Then I can plot emissions based on scenarios and models simultaneously.
 
 # Early scenario
@@ -154,10 +155,26 @@ plot_delay <-  add_column(plot_delay,scen_name = "Delayed action")
 whole <- rbind(plot_early,plot_delay)
 
 ```
+
+##### CO2 Emissions
+```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE,error=FALSE, warning=FALSE, purl=FALSE, r,message=FALSE}
+
+plotvar <- "Emissions|CO2"
+whole_emi <- whole[whole$variable==plotvar,]
+
+# historical emissions //India// Fossil Fuel and Industry
+hist_emi <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="Emi|CO2|Energy (Mt CO2/yr)") 
+  
+line_type_1(whole_emi,hist_emi,c(2005,2010))
+line_type_2(whole_emi,hist_emi,c(2005,2010))
+  
+```
+
+
 #### Cumulative Emissions 2010-2050
 
-```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
-whole_b <- whole_emi %>% 
+```{r cum_emi,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+whole_cum <- whole_emi %>% 
   filter(period>2005 & period<2055) %>% 
   group_by(model,scen_name) %>% 
   mutate(cumsum=cumsum(value)/1000) %>% 
@@ -166,7 +183,7 @@ whole_b <- whole_emi %>%
 
 # try 1
 ggplot()+
-  geom_bar(data=whole_b %>% filter(period==2050) , aes(x=reorder(model,cumsum),y=cumsum, group=interaction(model,scen_name),fill=scen_name),position="dodge", stat = "identity")+
+  geom_bar(data=whole_cum %>% filter(period==2050) , aes(x=reorder(model,cumsum),y=cumsum, group=interaction(model,scen_name),fill=scen_name),position="dodge", stat = "identity")+
   labs(
     x = "Model name" ,
     y = "Cumulative Emissions of India (2011-2050) (Gt/yr)",
@@ -174,7 +191,8 @@ ggplot()+
     alpha = "Model Scope"
  
   ) +
-  theme_bw()+
+  # theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
   
   #scale_alpha_discrete(range = c(0.95, 0.55))
   facet_grid(~model_scope,scales="free",space = "free_x")
@@ -195,10 +213,6 @@ The national budgets were decided after discussion with the global teams- The gl
 
 
 Each of the two CO2 budget are achieved by iteratively adjusting a global carbon price that is assumed to grow with 5% p.a. until 2060 and linearly thereafter. Regionally fragmented carbon prices in 2020 (for the cost-effective scenarios) or 2030 (for the other scenarios) converge to the globally harmonized carbon price over a 20 year period (see figure S2 in the supplementary material). GHGs other than CO2 are priced equivalently to CO2 throughout the 21st century based on 100 year global warming potentials from IPCC's Fifth Assessment Report.
-
-
-
-
 
 
 ```{r}
@@ -233,26 +247,10 @@ geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"
   scale_colour_brewer(palette = "Set1")+
   scale_alpha_discrete(range = c(0.95, 0.65))+
   annotate(geom = "point",x = years,y=hist_s$Value)
-  ggsave(file=paste(gsub(c("\\||\\/"),"_",unique(data_s$variable)),"_2",".png",sep=""),width=8,height=4)
+  ggsave(file=paste(gsub(c("\\||\\/"),"_",unique(data_s$variable)),"_2",".png",sep=""))
   }
 
 ```
-
-
-##### CO2 Emissions
-```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
-#plot emissions lines
-plotvar <- "Emissions|CO2"
-whole_emi <- whole[whole$variable==plotvar,]
-
-# historical emissions //India// Fossil Fuel and Industry
-hist_emi <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="Emi|CO2|Energy (Mt CO2/yr)") 
-  
-line_type_1(whole_emi,hist_emi,c(2005,2010))
-line_type_2(whole_emi,hist_emi,c(2005,2010))
-  
-```
-
 
 #### Emissions from the Electricity sector
 ```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
@@ -282,14 +280,12 @@ line_type_1(whole_emi_elec_share,hist_emi_elec_share,c(2005,2010))
 line_type_2(whole_emi_elec_share,hist_emi_elec_share,c(2005,2010))
 
 ggplot()+
-  geom_bar(data=whole_c %>% filter(period==2010),aes(x=reorder(model,share),y=share, group=interaction(model,scen_name),fill=scen_name,alpha=model_scope),position="dodge", stat = "identity")+coord_flip()+
+  geom_bar(data=whole_emi_elec_share %>% filter(period==2010),aes(x=reorder(model,share),y=share, group=interaction(model,scen_name),fill=scen_name,alpha=model_scope),position="dodge", stat = "identity")+coord_flip()+
   scale_alpha_discrete(range = c(0.95, 0.65))+
   labs(
     x = "Year" ,
     y = "CO2 Emissions Electricity (Gt/yr)")
 
-
-  
 ```
 
 #### Final Energy of Electricity
@@ -337,47 +333,37 @@ whole_coal_cap <- whole[whole$variable==plotvar,]
   hist_coal_cap <- hist_and_botmup%>% filter(Region=="IND", Variable =="Operating")
   hist_coal_cap$Value <- hist_coal_cap$Value/1000
   
-  line_type_1(whole_coal_cap,hist_coal_cap,2020)
-  line_type_2(whole_coal_cap,hist_coal_cap,2020)
+  line_type_1(whole_coal_cap,hist_coal_cap,2018)
+  line_type_2(whole_coal_cap,hist_coal_cap,2018)
 ```
 
 
 ```{r}
 #Power generation in 2030
-plotvar <- c("Secondary Energy|Electricity|Biomass|w/ CCS",
-             "Secondary Energy|Electricity|Biomass|w/o CCS",
-             "Secondary Energy|Electricity|Coal|w/ CCS",
-             "Secondary Energy|Electricity|Coal|w/o CCS",
-             "Secondary Energy|Electricity|Gas|w/ CCS",
-             "Secondary Energy|Electricity|Gas|w/o CCS",
-             "Secondary Energy|Electricity|Geothermal",
-             "Secondary Energy|Electricity|Hydro",
-             "Secondary Energy|Electricity|Nuclear",
-             "Secondary Energy|Electricity|Ocean",
-             "Secondary Energy|Electricity|Oil",
-             "Secondary Energy|Electricity|Other",
-             "Secondary Energy|Electricity|Solar",
-             "Secondary Energy|Electricity|Wind")
-## what <- grep("Coal",unique(whole$variable),value=T)
+# all technologies
+plotvar <- grep("Secondary Energy|Electricity|",unique(whole$variable),value=T,fixed = T)
+
 whole_se_elec <-whole[whole$variable %in% plotvar & whole$period==2030,]
 whole_se_elec_tot <- whole[whole$variable %in% "Secondary Energy|Electricity" & whole$period==2030,]
-levels(whole_se_elec$model) <- 
 source("plotstyle.R")
 
 ggplot()+
-  geom_col(data=whole_se_elec , aes(x=model,y=value,group=interaction(model,modscen),fill=variable),position = "dodge")+coord_flip()
+  geom_bar(data=whole_se_elec , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar))+
+  facet_grid(~model)+
+    theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))
+  
 
 ggplot()+
   geom_bar(data=whole_se_elec , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar))+
   facet_grid(~model)+theme(strip.text = element_text(size=8,angle = 90))
    
-# ggplot()+
-#   geom_col(data=whole_se_elec,aes(x=modscen,y=value,group=interaction(model,variable),fill=variable)) + coord_flip()
-# 
-#   # scale_fill_manual(values=plotstyle(plotvar)) + xlab("Model - Scenario") + 
-#   geom_text(data=whole_se_elec,aes(x=model,y=25,label=model_scope,angle=90,hjust="right"),color="red",size=2.5)+
-#   geom_point(data=whole_se_elec_tot,aes(x=modscen,y=value))+ylim(0,25)+
-#   theme_bw()+ylab("Secondary Energy Electricity in 2030 (EJ/yr)")
+ggplot()+
+  geom_col(data=whole_se_elec,aes(x=modscen,y=value,group=interaction(model,variable),fill=variable)) + coord_flip()
+
+  # scale_fill_manual(values=plotstyle(plotvar)) + xlab("Model - Scenario") +
+  geom_text(data=whole_se_elec,aes(x=model,y=25,label=model_scope,angle=90,hjust="right"),color="red",size=2.5)+
+  geom_point(data=whole_se_elec_tot,aes(x=modscen,y=value))+ylim(0,25)+
+  theme_bw()+ylab("Secondary Energy Electricity in 2030 (EJ/yr)")
 
 ```
 
@@ -389,20 +375,10 @@ head(hist_and_botmup%>%
 # Power capacity in 2030
 ```{r}
 #Power capacity in 2030
-plotvar <- c("Capacity|Electricity|Biomass|w/ CCS",
-             "Capacity|Electricity|Biomass|w/o CCS",
-             "Capacity|Electricity|Coal|w/ CCS",
-             "Capacity|Electricity|Coal|w/o CCS",
-             "Capacity|Electricity|Gas|w/ CCS",
-             "Capacity|Electricity|Gas|w/o CCS",
-             "Capacity|Electricity|Geothermal",
-             "Capacity|Electricity|Hydro",
-             "Capacity|Electricity|Nuclear",
-             "Capacity|Electricity|Ocean",
-             "Capacity|Electricity|Oil",
-             "Capacity|Electricity|Other",
-             "Capacity|Electricity|Solar",
-             "Capacity|Electricity|Wind")
+source("plotstyle.R")
+plotvar <- grep("Capacity|Electricity|",unique(whole$variable),value=T,fixed = T)
+plotvar <- plotvar[-c(13,14)]#removing Solar|PV and Wind|Onshore
+
 
 whole_cap_elec <- whole[whole$variable %in% plotvar & whole$period==2030,]
 coal <- hist_and_botmup%>%
@@ -422,7 +398,7 @@ ggplot()+
   geom_bar(data=whole_cap_elec , aes(x=reorder(scen_name,value),y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar))+
   facet_grid(~model)
   
-+coord_flip()
+
 
 ggplot()+
   geom_bar(data=whole_cap_elec %>% filter(scen_name=="Early action"), aes(x=reorder(model,value),y=value,group=interaction(model,modscen),fill=variable),position = "dodge")+coord_flip()+scale_fill_manual(values=plotstyle(plotvar))
