@@ -283,7 +283,7 @@ ggplot()+
 #### Capital Cost
 ```{r capital cost,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
 #plot capital cost
-plotvar <- "Capital Cost|Electricity|Solar|PV"
+plotvar <- c("Capital Cost|Electricity|Solar|PV")
 whole_cap_cost <- whole[whole$variable==plotvar,]
 localrate = 0.015 #https://www.xe.com/currencycharts/?from=INR&to=USD&view=10Y
 whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
@@ -325,7 +325,7 @@ line_type_2(whole_se_elec_sum,hist_se_elec_sum,c(2005,2010))
 ```
 
 #### Electrical efficiency
-```{r}
+```{r Elec|Efficiency,include=FALSE}
 
 whole_fe_elec <- whole_fe_elec %>% 
   arrange(model,scenario)
@@ -355,14 +355,47 @@ ggplot()+
 geom_line(data = whole_se_elec_eff %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=efficiency,group=interaction(model,scen_name),color=model,linetype=scen_name))+
     labs(
     x = "Year" ,
-    y = "Efficiency",
+    y = "Elec. Efficiency",
     color = "Global Model",
     alpha="National Model",
     linetype = "Scenario Type")+
   theme_bw()+
-  coord_cartesian(xlim = c(2005,2050))
+  coord_cartesian(xlim = c(2005,2050))+
+  annotate(geom = "point",x =c(2005,2010),y=hist_elec_eff$efficiency)
 # line_type_1(whole_se_elec_eff,hist_elec_eff,c(2005,2010))
 # line_type_2(whole_se_elec_eff,hist_elec_eff,c(2005,2010))
+```
+
+##### Total Demand and Demand in various sectors
+```{r FE, include=FALSE}
+plotvar <- c("Final Energy","Final Energy|Industry","Final Energy|Residential and Commercial","Final Energy|Transportation","Final Energy|Other","Final Energy|Other Sector")
+whole_fe <- whole[whole$variable %in% plotvar,]
+#hist_fe <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="FE|Electricity (EJ/yr)") 
+ggplot(whole_fe %>% filter(scen_name=="Early action" & period<2050))+
+  geom_line(aes(x = period,y = value,color=model_scope,linetype=model)) +
+  facet_grid(~variable)
+
+# line_type_1(whole_fe,hist_fe_elec,c(2005,2010))
+# line_type_2(whole_fe,hist_fe_elec,c(2005,2010))
+
+```
+#### Efficiency of coal to electricity conversion
+```{r}
+whole_pe_coal_elec <- whole[whole$variable=="Primary Energy|Coal|Electricity" ,] %>% 
+  arrange(model,scenario)
+whole_se_coal_elec <- whole[whole$variable=="Secondary Energy|Electricity|Coal|w/o CCS" & whole$model!="COPPE-COFFEE 1.0",] %>% 
+  arrange(model,scenario)
+whole_se_coal_elec_eff <- transform(whole_se_coal_elec,efficiency=whole_se_coal_elec$value/whole_pe_coal_elec$value) 
+ggplot()+
+  geom_line(data = whole_se_coal_elec_eff , aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+   labs(
+    x = "Year" ,
+    y = "Elec. Efficiency",
+    color = "Model Scope",
+    linetype = "Scenario Type"
+  ) +
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050))
 ```
 
 
