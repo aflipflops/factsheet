@@ -1,7 +1,7 @@
 ---
 title: "Carbon Lock-in task CD LINKS"
 author: "Aman Malik and Chirstoph Bertram"
-date: "17 September 2018"
+date:   "15 October 2018"  
 output: html_document
 code_folding: "hide"
 ---
@@ -191,6 +191,10 @@ whole_emi <- whole[whole$variable==plotvar,]
 
 # historical emissions //India// Fossil Fuel and Industry
 hist_emi <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="Emi|CO2|Energy (Mt CO2/yr)") 
+
+# geom_line(data = data_s , aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,color=model_scope))
+ggplot()+geom_polygon(data=whole_emi %>% filter(period<2050),aes(x=period,y=value,group=interaction(model,scen_name)))
+
   
 line_type_1(whole_emi,hist_emi,c(2005,2010))
 line_type_2(whole_emi,hist_emi,c(2005,2010))
@@ -276,19 +280,8 @@ ggplot()+
     y = "CO2 Emissions Electricity (Gt/yr)")
 
 ```
-
-#### Final Energy of Electricity
-```{r,,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
-plotvar <- "Final Energy|Electricity"
-whole_fe_elec <- whole[whole$variable==plotvar,]
-hist_fe_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="FE|Electricity (EJ/yr)") 
-
-line_type_1(whole_fe_elec,hist_fe_elec,c(2005,2010))
-line_type_2(whole_fe_elec,hist_fe_elec,c(2005,2010))
-```
-
 #### Capital Cost
-```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+```{r capital cost,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
 #plot capital cost
 plotvar <- "Capital Cost|Electricity|Solar|PV"
 whole_cap_cost <- whole[whole$variable==plotvar,]
@@ -301,8 +294,80 @@ line_type_2(whole_cap_cost,proj_iea,seq(2015,2040,5))
 ```
 ? historical PV costs
 
+#### Final Energy of Electricity
+```{r FE|Electricity,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+plotvar <- "Final Energy|Electricity"
+whole_fe_elec <- whole[whole$variable==plotvar,]
+hist_fe_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="FE|Electricity (EJ/yr)") 
+
+line_type_1(whole_fe_elec,hist_fe_elec,c(2005,2010))
+line_type_2(whole_fe_elec,hist_fe_elec,c(2005,2010))
+```
+
+#### Secondary Energy of Electricity
+```{r SE|Electricity,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+# all tech with secondary energy of electricity
+plotvar <- grep("Secondary Energy|Electricity|",unique(whole$variable),value=T,fixed = T)
+whole_se_elec <-whole[whole$variable %in% plotvar,]
+## adding all SE techs
+whole_se_elec_sum <- whole_se_elec %>% 
+  group_by(model,scenario,scen_name,period,model_scope,unit) %>% 
+  summarise(value=sum(value))
+whole_se_elec_sum$variable <- "Secondary Energy|Electricity"
+# Sum over all variables to get secondary energy electricity
+hist_se_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010), Variable %in% grep("SE|Electricity",unique(hist_and_botmup$Variable),value=T,fixed = T))
+hist_se_elec_sum <- hist_se_elec %>% 
+  group_by(Region,Year) %>% 
+  summarise(Value=sum(Value))
+
+line_type_1(whole_se_elec_sum,hist_se_elec_sum,c(2005,2010))
+line_type_2(whole_se_elec_sum,hist_se_elec_sum,c(2005,2010))
+```
+
+#### Electrical efficiency
+```{r}
+
+whole_fe_elec <- whole_fe_elec %>% 
+  arrange(model,scenario)
+whole_se_elec_sum <- whole_se_elec_sum %>% 
+  arrange(model,scenario)
+
+whole_se_elec_eff <- transform(whole_se_elec_sum,efficiency=whole_fe_elec$value/whole_se_elec_sum$value) 
+#names(whole_se_elec_eff)[8] <- "value"
+
+hist_elec_eff <- transform(hist_se_elec_sum,efficiency=hist_fe_elec$Value/Value)
+#names(hist_elec_eff)[4] <- "Value"
+
+ggplot()+
+  geom_line(data = whole_se_elec_eff , aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+   labs(
+    x = "Year" ,
+    y = "Elec. Efficiency",
+    color = "Model Scope",
+    linetype = "Scenario Type"
+  ) +
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050))+
+  annotate(geom = "point",x =c(2005,2010),y=hist_elec_eff$efficiency)
+
+ggplot()+
+  geom_line(data = whole_se_elec_eff %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
+geom_line(data = whole_se_elec_eff %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=efficiency,group=interaction(model,scen_name),color=model,linetype=scen_name))+
+    labs(
+    x = "Year" ,
+    y = "Efficiency",
+    color = "Global Model",
+    alpha="National Model",
+    linetype = "Scenario Type")+
+  theme_bw()+
+  coord_cartesian(xlim = c(2005,2050))
+# line_type_1(whole_se_elec_eff,hist_elec_eff,c(2005,2010))
+# line_type_2(whole_se_elec_eff,hist_elec_eff,c(2005,2010))
+```
+
+
 #### Secondary Energy from Coal 
-```{r coal SE,include=FALSE}
+```{r SE|Elec|Coal,include=FALSE}
 plotvar <- "Secondary Energy|Electricity|Coal|w/o CCS"
 whole_se_coal <- whole[whole$variable==plotvar,]    
 hist_se_coal <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010), Variable =="SE|Electricity|Coal (EJ/yr)")
@@ -313,7 +378,7 @@ line_type_2(whole_se_coal,hist_se_coal,c(2005,2010))
 ```
 
 #### Coal Power Capacity
-```{r,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+```{r Capacity|Elec|Coal,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
 plotvar <- "Capacity|Electricity|Coal|w/o CCS"
 whole_coal_cap <- whole[whole$variable==plotvar,]    
 # hist_coal_cap <- hist_and_botmup%>%
