@@ -14,16 +14,25 @@ code_folding: "hide"
 knitr::opts_chunk$set(fig.path = "figure-carbonlockin/",cache = T,echo=F)
 ```
 
-
-```{r req packages,message=FALSE, warning=FALSE, include=FALSE,results='hide'}
-# library(quitte)
-# library(moinput)
-library(tidyverse)
-library(reshape)
-library(data.table)
+```{r}
+#### Some comments on knitr arguments
+#warnings=FALSE, switches off all warnings from the trunk
+#eval = FALSE, doesn't evaluate the chunk. Useful for packages that are not yet open-source, e.g., moinput
+# include=FALSE, suppresses messages associated with loading packages
 ```
 
-```{r all_data,include=FALSE,results='hide',message=FALSE,purl=FALSE}
+```{r req packages,warning=FALSE,include=FALSE}
+
+# library(quitte)
+# library(moinput)
+list.of.packages <- c("tidyverse", "reshape","data.table")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, require, character.only = TRUE)
+
+```
+
+```{r all_data,eval=FALSE,include=FALSE,message=FALSE,purl=FALSE}
 
 #read in data
 # all <- invisible(fread("cdlinks_compare_20180508-032045.csv",header=TRUE)) #seems to be missing the V3 variants
@@ -86,12 +95,16 @@ delay   <- all[all$scenario %in% c("INDC2030i_1000_V4","INDC2030i_1000_V3","INDC
 delay <-  add_column(delay,scen_name = "Delayed action")
 whole <- rbind(early,delay)
 fwrite(whole,"")
-
 save(whole,file="data_IND.RData")
+
+```
+
+```{r}
 load("data_IND.RData")
 ```
 
-```{r historical data,include=FALSE,echo=FALSE,results='hide',message=FALSE,purl=FALSE}
+
+```{r historical data,eval=FALSE, include=FALSE,echo=FALSE,,message=FALSE,purl=FALSE}
 # Relevant historical and bottom-up data 
 # historical IEA data (PE, SE, FE,Trade), and CEDS emissions data
 setConfig(forcecache = TRUE)
@@ -135,6 +148,9 @@ hist_and_botmup <- rbind(hist_IEA_CEDS,hist_IRENA_cap,nuclear_IAEA,capacity_cost
 
 # historical nuclear 
 save(hist_and_botmup,file="HistandBotmup.RData")
+
+```
+```{r}
 load("HistandBotmup.RData")
 ```
 
@@ -184,7 +200,7 @@ geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"
 ```
 
 ##### CO2 Emissions
-```{r co2 emissions,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE,error=FALSE, warning=FALSE, purl=FALSE,message=FALSE}
+```{r co2 emissions,,warning=FALSE}
 
 plotvar <- "Emissions|CO2"
 whole_emi <- whole[whole$variable==plotvar,]
