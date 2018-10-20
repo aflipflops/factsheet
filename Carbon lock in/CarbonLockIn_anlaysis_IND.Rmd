@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 ---
 title: "Carbon Lock-in task CD LINKS"
 author: "Aman Malik and Chirstoph Bertram"
@@ -16,21 +16,30 @@ html_document:
 knitr::opts_chunk$set(fig.path = "figure-carbonlockin/",cache = T,echo=F)
 ```
 
-
-```{r req packages,message=FALSE, warning=FALSE, include=FALSE,results='hide'}
-# library(quitte)
-# library(moinput)
-library(tidyverse)
-library(reshape)
-library(data.table)
+```{r}
+#### Some comments on knitr arguments
+#warnings=FALSE, switches off all warnings from the trunk
+#eval = FALSE, doesn't evaluate the chunk. Useful for packages that are not yet open-source, e.g., moinput
+# include=FALSE, suppresses messages associated with loading packages
 ```
 
-```{r all_data,include=FALSE,results='hide',message=FALSE,purl=FALSE}
+```{r req packages,warning=FALSE,include=FALSE}
+
+# library(quitte)
+# library(moinput)
+list.of.packages <- c("tidyverse", "reshape","data.table")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, require, character.only = TRUE)
+
+```
+
+```{r all_data,include=FALSE,eval=FALSE}
 
 #read in data
-# all <- invisible(fread("cdlinks_compare_20180508-032045.csv",header=TRUE)) #seems to be missing the V3 variants
-# all <- invisible(fread("cdlinks_compare_20180810-010937.csv",header=TRUE)) #only MESSAGE
-# all <- invisible(fread("cdlinks_compare_20180720-122848.csv",header=TRUE)) #only MESSAGE, AIM/CGE, IMAGE3.0, POLES, WITCH
+all <- invisible(fread("cdlinks_compare_20180508-032045.csv",header=TRUE)) #seems to be missing the V3 variants
+all <- invisible(fread("cdlinks_compare_20180810-010937.csv",header=TRUE)) #only MESSAGE
+all <- invisible(fread("cdlinks_compare_20180720-122848.csv",header=TRUE)) #only MESSAGE, AIM/CGE, IMAGE3.0, POLES, WITCH
 all <- fread(input = "cdlinks_compare_20180615-153808.csv",header = T, sep = ',') #all V3 and V4 scens
 
 #filter for desired set of time series
@@ -90,10 +99,14 @@ whole <- rbind(early,delay)
 fwrite(whole,"")
 
 save(whole,file="data_IND.RData")
+```
+
+```{r}
 load("data_IND.RData")
 ```
 
-```{r historical data,include=FALSE,eval=F}
+
+```{r historical data,include=FALSE,eval=FALSE}
 # Relevant historical and bottom-up data 
 # historical IEA data (PE, SE, FE,Trade), and CEDS emissions data
 setConfig(forcecache = TRUE)
@@ -1101,4 +1114,3 @@ ggplot()+
 ggsave(file="Capacity_IND.png",width=8,height=5)
 ```
 
->>>>>>> a906bc45c50cd1a124c98ffea9327e884bd859bb
