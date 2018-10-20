@@ -8,7 +8,6 @@ html_document:
   toc_depth: "2"
 ---
 
-
 ```{r global settings, include=FALSE}
 # setting global settings for knitr
 # echo=TRUE/FALSE whether to include R source code in the output file
@@ -342,7 +341,7 @@ geom_line(data = whole_se_elec_eff %>% filter(!model %in% c("India MARKAL","AIM/
 ```{r coal_plant_eff,warning=FALSE,fig.show='hold',out.width="50%"}
 ## Efficiency of coal plants
 
-whole_pe_coal_elec[which(whole_pe_coal_elec),]
+
 whole_pe_coal_elec <- whole %>%
                   filter(variable=="Primary Energy|Coal|Electricity")%>% 
                   arrange(model,scenario)
@@ -356,9 +355,7 @@ whole_se_coal_elec_eff <- transform(whole_se_coal_elec,efficiency=whole_se_coal_
 whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/o CCS","Capacity|Electricity|Coal|w/ CCS")) %>% group_by(region,unit,period,modscen,model_scope,scenario,model_scope) %>% 
   summarise(value=sum(value)) %>% 
   mutate(variable="Capacity|Electricity|Coal")
-  
-  
-  
+
   
 # hist_coal_cap <- hist_and_botmup%>%
 #   filter(grepl("Operating|Constr|Announced",Variable),Region=="IND")
@@ -366,8 +363,8 @@ whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/
 hist_coal_cap <- hist_and_botmup%>% filter(Region=="IND", Variable =="Operating")
   hist_coal_cap$Value <- hist_coal_cap$Value/1000
 
-  line_type_1(whole_coal_cap,hist_coal_cap,2018)
-  line_type_2(whole_coal_cap,hist_coal_cap,2018)
+  # line_type_1(whole_coal_cap,hist_coal_cap,2018)
+  # line_type_2(whole_coal_cap,hist_coal_cap,2018)
   ggplot()+
   geom_line(data = whole_se_coal_elec_eff , aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
    labs(
