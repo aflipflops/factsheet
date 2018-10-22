@@ -16,7 +16,7 @@ knitr::opts_chunk$set(fig.path = "figure-carbonlockin/",cache = T,echo=F)
 ```
 
 ```{r}
-#### Some comments on knitr arguments
+#### Some comments on knitr arguments ########
 #warnings=FALSE, switches off all warnings from the trunk
 #eval = FALSE, doesn't evaluate the chunk. Useful for packages that are not yet open-source, e.g., moinput
 # include=FALSE, suppresses messages associated with loading packages
@@ -33,9 +33,9 @@ library(data.table)
 ```{r all_data,include=FALSE,eval=FALSE,message=FALSE,purl=FALSE}
 
 #read in data
-# all <- invisible(fread("cdlinks_compare_20180508-032045.csv",header=TRUE)) #seems to be missing the V3 variants
-# all <- invisible(fread("cdlinks_compare_20180810-010937.csv",header=TRUE)) #only MESSAGE
-# all <- invisible(fread("cdlinks_compare_20180720-122848.csv",header=TRUE)) #only MESSAGE, AIM/CGE, IMAGE3.0, POLES, WITCH
+all <- invisible(fread("cdlinks_compare_20180508-032045.csv",header=TRUE)) #seems to be missing the V3 variants
+all <- invisible(fread("cdlinks_compare_20180810-010937.csv",header=TRUE)) #only MESSAGE
+all <- invisible(fread("cdlinks_compare_20180720-122848.csv",header=TRUE)) #only MESSAGE, AIM/CGE, IMAGE3.0, POLES, WITCH
 all <- fread(input = "cdlinks_compare_20180615-153808.csv",header = T, sep = ',') #all V3 and V4 scens
 
 #filter for desired set of time series
@@ -100,7 +100,7 @@ load("data_IND.RData")
 ```
 
 
-```{r historical data,include=FALSE,eval=F}
+```{r historical data,include=FALSE,eval=FALSE}
 # Relevant historical and bottom-up data 
 # historical IEA data (PE, SE, FE,Trade), and CEDS emissions data
 setConfig(forcecache = TRUE)
@@ -145,6 +145,7 @@ hist_and_botmup <- rbind(hist_IEA_CEDS,hist_IRENA_cap,nuclear_IAEA,capacity_cost
 # historical nuclear 
 save(hist_and_botmup,file="HistandBotmup.RData")
 ```
+
 ```{r}
 load("HistandBotmup.RData")
 ```
@@ -152,6 +153,8 @@ load("HistandBotmup.RData")
 The objective of the current task is to analyse and compare the structure of the Indian power sector under various mitigation regimes. It is often said that models are as good as the assumptions they are based on. Through this analysis, we hope to comment upon the plausibility of the assumptions used by these models. 
 
 ### Methodology
+
+ Global Integrated Assessment Models (IAMs) informed national energy-economy models and national IAMs in terms of national emission budgets consistent with long-term climate targets. National models often focus on nation-specific development issues, and have a stronger grasp on technologies and policies.  
 
 #### Explanation of scenario names
 
@@ -221,6 +224,9 @@ line_type_2(whole_emi,hist_emi,c(2005,2010))
 line_type_1(whole_emi_elec,hist_emi_elec,c(2005,2010))
 line_type_2(whole_emi_elec,hist_emi_elec,c(2005,2010))
 ```
+The top two figure show the total CO2 emissions for India, including the landuse sector. The figure on the top left shows the two national models in blue and the 9 global models in red. The top right figure shows the same data but now also with the names of the models. The continuous lines show delayed action, i.e., climate mitigation starts in 2030 (before only NDCs), while early action scenarios, in dashed lines represent current policies in 2020 followed by cliamte mitigation. _Climate mitigation_ means that from that year on, the model needs to comply by a carbon budget which is achieved by having a carbon price.  From these two figures, it is clear that both national models have no clear peaking year; in fact one model shows no peak in emissions but only a slight decrease in the growth of emissions. Most global model, on the other hand, show a peak year, which is either 2020 or 2030 depending upon a scenario. There is a considerable spread of emissions in both national and global models. National model emissions are higher than the global model emissions due to a higher carbon budget. The two black dots are only sector historical emissions; which represent xx% of the total emissions of India. Most models, get this number right.
+
+The bottom two figures show the share of emissions generated from electricity combustion. Here the inteesting finding is that although national models have no peak in total emissions, they agree with global models that electricity emissions need to peak. Unlike global models which immediately fast track on steep electricity sector decarbonisation after 2020 (in early action), or 2030 (in delayed action), most reaching zero or close to zero (with some even negative) emissions in 2050, the national models cut emissions but not drastically. We will later see, what is the structure of the power mix in 2050, and what is contributing these emissions: is there a shift from coal to gas?, from coal w/o CCS to coal with CCS. Comparing from historical numbers, almost all except one outlier seem to get the electricity emissions correct.
 
 
 #### Share of emissions - Electricity sector and coal power plants
@@ -241,16 +247,36 @@ hist_emi_elec_share$Value <- hist_emi_elec_share$share
 whole_pe_fossil <- whole %>% filter(variable %in% c("Primary Energy|Coal|Electricity","Primary Energy|Gas|Electricity"))
 
 # "Primary Energy|Coal|w/ CCS","Primary Energy|Coal|w/o CCS" ,"Primary Energy|Gas|w/ CCS"  , "Primary Energy|Gas|w/o CCS","Primary Energy|Oil|w/ CCS" , "Primary Energy|Oil|w/o CCS",
-
+hist_pe_coal_elec <- hist_and_botmup %>% filter(Variable=="PE|Coal|Electricity (EJ/yr)",Year %in% c(2005,2010,2015),Region=="IND")
+hist_pe_gas_elec <- hist_and_botmup %>% filter(Variable=="PE|Gas|Electricity (EJ/yr)",Year %in% c(2005,2010,2015),Region=="IND")
 
 line_type_1(whole_emi_elec_share,hist_emi_elec_share,c(2005,2010))
 line_type_2(whole_emi_elec_share,hist_emi_elec_share,c(2005,2010))
 ggplot()+
-  geom_line(data = whole_pe_fossil %>% filter(period<2050,scen_name=="Early action") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(~variable)+
+  geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Coal|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
  labs(
-    x = "Year" ,
-    y = "Primary Energy (EJ/yr)")+
-  theme_bw()
+    x = "Year",
+    y = "Primary Energy (EJ/yr)")+ theme_bw()+
+   annotate("point",x=c(2005,2010,2015),y=hist_pe_coal_elec$Value)
+
+ggplot()+
+  geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Gas|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
+ labs(
+    x = "Year",
+    y = "Primary Energy (EJ/yr)")+ theme_bw()+
+   annotate("point",x=c(2005,2010,2015),y=hist_pe_gas_elec$Value)
+
+```
+
+The top two figures show the share of emissions from the electricity sector compared to the total emissions. The message here is similar to the last two figures. That both national and global models show power sector decarbonisation potential (compare here with other sectors), has already been mentioned above.
+Decarbonisation of the electricity sector can take place in a multitude of ways - coal plants be retired, new coal plants are CCS enabled, and simply moving to renewable energy, i.e., Hydro, solar, wind, and nucler. The question is what is behind the emissions in the electricity sector in 2050. Taking Primary energy as a proxy for emissions by type of fuel, for early and delayed action, the plot is shown at the bottom. Out of the two national models from India in the modeling excercise, AIM/Enduse 3.0 and India Markal, only the former has CCS available as an option. Both national models show a resurgence of coal at some later part of time. For AIM/Enduse 3.0 this might be because of Coal CCS, but it is still unclear for _Markal_. In general, an early mitigation policy has almost no effect on coal output to power plants (see early action), but strangely PE decreases in 2030 before resurging again in 2035. For a delayed action, the dip in PE is small. Another interesting finding is that although the both models have comparable CO2 emissions from the electricity sector till 2020, their PE are quite different (maybe due to efficiency of plants?). For the global models, the pattern seems to be robust in delay scenarios, most project zero PE in 2050; meaning that the potential for coal CCS till is very limited. The pictures get hazy in the early action scenario for the time period between 2020 and 2050, with a wide range in the rates of decarbonisation and many having apparently coal CCS in the mix or coal w/o CCS and BECCS (but then again will BECCS become economically favourable before coal CCS?). Why does REMIND has such high PE Coal Elec values in 2030 and before? Why do almost all global models have much higher PE than national models? Should we convert PE Coal to tonnes of coal mined and see with current numbers? 
+The picture for gas seems to be quite polar. India has much more coal than gas resources, and the push for clean cooking and vehicles/public transport using compressed natural gas, means that gas based electricity is expensive. The question is will India see transition from coal to gas based power, commonly seen in European nations? The two national models have completely divergent views on the same, including the global models.
+This might be due to Coal CCS 
+This might be the reason for the resurgence of coal in both the early and delay scenarios, albeit in a lower amount in the early action, due to early mitigation. The second model, India Markal 
+In both the early and delayed scenarios, the national models show 
+
+#### Share of emissions- Non-electricity sector
+```{r}
 
 ```
 
@@ -258,7 +284,8 @@ ggplot()+
 #### Secondary and Final Energy of Electricity (model scope and technology)
 ```{r SE_Electricity,warning=FALSE,fig.show='hold',out.width="50%"}
 # Secondary Energy of Electricity
-whole_se_elec <-whole %>% filter(variable %in% grep("Secondary Energy|Electricity|",unique(whole$variable),value=T,fixed = T))
+plotvar_1 <- grep("Secondary Energy|Electricity|",unique(whole$variable),value=T,fixed = T)
+whole_se_elec <-whole %>% filter(variable %in% plotvar_1 )
 ## adding all SE techs
 whole_se_elec_sum <- whole_se_elec %>% 
   group_by(model,scenario,scen_name,period,model_scope,unit,modscen,unit) %>% 
@@ -284,14 +311,20 @@ line_type_1(whole_fe_elec,hist_fe_elec,c(2005,2010))
 line_type_2(whole_fe_elec,hist_fe_elec,c(2005,2010))
 
 ggplot()+
-  geom_bar(data=whole_se_elec %>% filter(period==2030) , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar))+
+  geom_bar(data=whole_se_elec %>% filter(period==2030) , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar_1))+
   facet_grid(~model)+
-    theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))
-
+    theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(
+    x="Scenario",
+    y = "Secondary Energy (EJ/yr) in 2030")
+# 
 ggplot()+
-  geom_bar(data=whole_se_elec %>% filter(period==2050) , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar))+
+  geom_bar(data=whole_se_elec %>% filter(period==2050) , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar_1))+
   facet_grid(~model)+
-    theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))
+    theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(
+    x="Scenario",
+    y = "Secondary Energy (EJ/yr) in 2050")
 ```
 
 
@@ -441,7 +474,8 @@ whole_fe <- whole[whole$variable %in% plotvar,]
 ```{r}
 #Power generation in 2030
 # all technologies
-whole_se_elec <- whole %>% filter(variable %in% grep("Secondary Energy|Electricity|",unique(whole$variable),value=T,fixed = T))
+plotvar <- grep("Secondary Energy|Electricity|",unique(whole$variable),value=T,fixed = T)
+whole_se_elec <- whole %>% filter(variable %in% plotvar )
 whole_se_elec_tot <- whole %>% filter(variable== "Secondary Energy|Electricity")
 source("plotstyle.R")
 
@@ -474,22 +508,22 @@ The capacity factor of a plant is defined as the fraction of time it is availabl
 ```{r}
 # removing observations in whole_se_coal that are not in whole_cap_coal
  
-whole_se_coal_2 <- whole_se_coal %>% 
-  filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","AIM/Enduse 3.0 - INDC2030_low_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3")) %>% 
-  mutate(cap_factor=value*277777.778/(whole_coal_cap$value*8760)) %>%   
-  mutate(capacity=whole_coal_cap$value) %>% 
-  filter(capacity!=0)
-                        
-ggplot()+
-  geom_line(data = whole_se_coal_2 , aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
-   labs(
-    x = "Year" ,
-    y = "Capacity Factor",
-    color = "Model Scope",
-    linetype = "Scenario Type"
-  ) +
-  theme_bw()+ 
-  coord_cartesian(xlim = c(2005,2050))
+# whole_se_coal <- whole %>% 
+#   filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","AIM/Enduse 3.0 - INDC2030_low_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3")) %>% 
+#   mutate(cap_factor=value*277777.778/(whole_coal_cap$value*8760)) %>%   
+#   mutate(capacity=whole_coal_cap$value) %>% 
+#   filter(capacity!=0)
+#                         
+# ggplot()+
+#   geom_line(data = whole_se_coal, aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+#    labs(
+#     x = "Year" ,
+#     y = "Capacity Factor",
+#     color = "Model Scope",
+#     linetype = "Scenario Type"
+#   ) +
+#   theme_bw()+ 
+#   coord_cartesian(xlim = c(2005,2050))
 
 ```
 
