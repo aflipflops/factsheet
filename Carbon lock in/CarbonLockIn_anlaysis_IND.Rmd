@@ -4,8 +4,8 @@ author: "Aman Malik and Christoph Bertram"
 date:   "15 October 2018"  
 output: 
 html_document:
-  toc: "true"
-  toc_depth: "2"
+  toc: true
+  toc_depth: 2
 pdf_document:
     keep_tex: true
 ---
@@ -17,7 +17,7 @@ pdf_document:
 knitr::opts_chunk$set(fig.path = "figure-carbonlockin/",cache = T,echo=F)
 ```
 
-```{r}
+```{r comments knitr}
 #### Some comments on knitr arguments ########
 #warnings=FALSE, switches off all warnings from the trunk
 #eval = FALSE, doesn't evaluate the chunk. Useful for packages that are not yet open-source, e.g., moinput
@@ -30,6 +30,7 @@ knitr::opts_chunk$set(fig.path = "figure-carbonlockin/",cache = T,echo=F)
 library(tidyverse)
 library(reshape)
 library(data.table)
+library(RColorBrewer)
 ```
 
 ```{r all_data,include=FALSE,eval=FALSE,message=FALSE,purl=FALSE}
@@ -65,6 +66,7 @@ all  <- na.omit(all) # remove rows containing NAs
 #make variables a factor, so that the order in facets can be manipulated easily
 all$variable <- factor(all$variable)
 
+
 all$model1 <- all$model
 all$scenario1 <- all$scenario
 all <- unite(all,col="modscen",c("model1","scenario1"),sep = " - ")
@@ -86,6 +88,7 @@ v4mods <- unique(all[scenario %in% v4scens]$model)
 all <- rbind(all[!model %in% v4mods],all[model %in% v4mods & scenario %in% v4scens])
 
 all <- all %>% 
+  filter(model!="GLOBIOM 1.0" )%>%
   mutate(model_scope=ifelse(model=="India MARKAL"|model=="AIM/Enduse 3.0","national","global"))
 # Early scenario
 early <- all[all$scenario %in% c("NPi2020_1000_V4","NPi2020_1000_V3","NPi2020_low_V3"),]
@@ -152,12 +155,13 @@ save(hist_and_botmup,file="HistandBotmup.RData")
 ```{r}
 load("HistandBotmup.RData")
 ```
+
 ### Objective
 The objective of the current task is to analyse and compare the structure of the Indian power sector under various mitigation regimes. It is often said that models are as good as the assumptions they are based on. Through this analysis, we hope to comment upon the plausibility of the assumptions used by these models. 
 
 ### Methodology
 
- Global Integrated Assessment Models (IAMs) informed national energy-economy models and national IAMs in terms of national emission budgets consistent with long-term climate targets. National models often focus on nation-specific development issues, and have a stronger grasp on technologies and policies.  
+Global Integrated Assessment Models (IAMs) informed national energy-economy models and national IAMs in terms of national emission budgets consistent with long-term climate targets. National models often focus on nation-specific development issues, and have a stronger grasp on technologies and policies.  
 
 #### Explanation of scenario names
 
@@ -167,8 +171,13 @@ The objective of the current task is to analyse and compare the structure of the
 |Delayed action|Cumulative national emissions (budget/target) from 2011-2050, climate policy starts in 2030|Cumulative global emissions target of 1000GtC, climate policy starts in 2030|
 
 ```{r generic plot functions}
+
+myColors <- brewer.pal(11,"Paired")
+#myColors <- rainbow_hcl(12)
+names(myColors) <- as.character(unique(whole$model))
+
 # Writing a generic function for a line-type ggplot
-line_type_1 <- function(data_s,hist_s,years){
+line_type_1 <- function(data_s,hist_s){
   ggplot()+
   geom_line(data = data_s , aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
    labs(
@@ -178,14 +187,14 @@ line_type_1 <- function(data_s,hist_s,years){
     linetype = "Scenario Type"
   ) +
   theme_bw()+ 
-  coord_cartesian(xlim = c(2005,2050),ylim =c(1.3*min(data_s$value[data_s$period<2050]),1.3*max(data_s$value[data_s$period<2050])))+
-  annotate(geom = "point",x = years,y=hist_s$Value)
+    coord_cartesian(xlim = c(2005,2050),ylim =c(1.3*min(data_s$value[data_s$period<2050]),1.3*max(data_s$value[data_s$period<2050])))+
+     annotate(geom = "point",x = as.numeric(as.character(hist_s$Year)),y=hist_s$Value)
   # ggsave(file=paste(gsub(c("\\||\\/"),"_",unique(data_s$variable)),"_1",".png",sep=""))
 }
 
-line_type_2 <- function(data_s,hist_s,years){
+line_type_2 <- function(data_s,hist_s){
   ggplot()+
-  geom_line(data = data_s %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
+  geom_line(data = data_s %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model),size=1) +
 geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name))+
     labs(
     x = "Year" ,
@@ -195,13 +204,15 @@ geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"
     linetype = "Scenario Type")+
   theme_bw()+ 
   coord_cartesian(xlim = c(2005,2050),ylim =c(1.3*min(data_s$value[data_s$period<2050]),1.3*max(data_s$value[data_s$period<2050])))+
-  scale_colour_brewer(palette = "Set1")+
-  scale_alpha_discrete(range = c(0.95, 0.65))+
-  annotate(geom = "point",x = years,y=hist_s$Value)
+  scale_colour_manual(values = myColors)+
+  # scale_colour_brewer(palette = "Set1")+
+  scale_alpha_discrete(range = c(0.95, 0.60))+
+  annotate(geom = "point",x = as.numeric(as.character(hist_s$Year)),y=hist_s$Value)
   # ggsave(file=paste(gsub(c("\\||\\/"),"_",unique(data_s$variable)),"_2",".png",sep=""))
   }
 
 ```
+
 ### Results and Discussion
 
 #### CO2 Emissions- Total and Electricity sector
@@ -212,20 +223,15 @@ whole_emi <- whole[whole$variable=="Emissions|CO2",]
 # historical emissions //India// Fossil Fuel and Industry
 hist_emi <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="Emi|CO2|Energy (Mt CO2/yr)") 
 
-# geom_line(data = data_s , aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,color=model_scope))
-# ggplot()+geom_polygon(data=whole_emi %>% filter(period<2050),aes(x=period,y=value,group=interaction(model,scen_name)))
-#### Emissions from the Electricity sector
-#plot emissions electricity sector 
-
 whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
 # historical emissions //India// Fossil Fuel and Industry
 hist_emi_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="Emi|CO2|Energy|Supply|Electricity (Mt CO2/yr)") 
 # share is the share of electricity emissions to total emissions
 
-line_type_1(whole_emi,hist_emi,c(2005:2015))
-line_type_2(whole_emi,hist_emi,c(2005:2015))
-line_type_1(whole_emi_elec,hist_emi_elec,c(2005:2015))
-line_type_2(whole_emi_elec,hist_emi_elec,c(2005:2015))
+#line_type_1(whole_emi,hist_emi)
+line_type_2(whole_emi,hist_emi)
+#line_type_1(whole_emi_elec,hist_emi_elec)
+line_type_2(whole_emi_elec,hist_emi_elec)
 ```
 The top two figure show the total CO2 emissions for India, including the landuse sector. The figure on the top left shows the two national models in blue and the 9 global models in red. The top right figure shows the same data but now also with the names of the models. The continuous lines show delayed action, i.e., climate mitigation starts in 2030 (before only NDCs), while early action scenarios, in dashed lines represent current policies in 2020 followed by cliamte mitigation. _Climate mitigation_ means that from that year on, the model needs to comply by a carbon budget which is achieved by having a carbon price.  From these two figures, it is clear that both national models have no clear peaking year; in fact one model shows no peak in emissions but only a slight decrease in the growth of emissions. Most global model, on the other hand, show a peak year, which is either 2020 or 2030 depending upon a scenario. There is a considerable spread of emissions in both national and global models. National model emissions are higher than the global model emissions due to a higher carbon budget. The two black dots are only sector historical emissions; which represent xx% of the total emissions of India. Most models, get this number right.
 
@@ -247,27 +253,35 @@ hist_emi_elec_share$Value <- hist_emi_elec_share$share
 
 # Contribution of coal power plants to total electricity emissions
 # Use Primary Energy as proxy 
+
 whole_pe_fossil <- whole %>% filter(variable %in% c("Primary Energy|Coal|Electricity","Primary Energy|Gas|Electricity"))
 
 # "Primary Energy|Coal|w/ CCS","Primary Energy|Coal|w/o CCS" ,"Primary Energy|Gas|w/ CCS"  , "Primary Energy|Gas|w/o CCS","Primary Energy|Oil|w/ CCS" , "Primary Energy|Oil|w/o CCS",
+hist_pe_tot <- hist_and_botmup %>% filter(Variable=="PE (EJ/yr)",Year %in% c(2005:2015),Region=="IND")
 hist_pe_coal_elec <- hist_and_botmup %>% filter(Variable=="PE|Coal|Electricity (EJ/yr)",Year %in% c(2005:2015),Region=="IND")
 hist_pe_gas_elec <- hist_and_botmup %>% filter(Variable=="PE|Gas|Electricity (EJ/yr)",Year %in% c(2005:2015),Region=="IND")
 
-line_type_1(whole_emi_elec_share,hist_emi_elec_share,c(2005:2015))
-line_type_2(whole_emi_elec_share,hist_emi_elec_share,c(2005:2015))
+#line_type_1(whole_emi_elec_share,hist_emi_elec_share)
+line_type_2(whole_emi_elec_share,hist_emi_elec_share)
+
 ggplot()+
   geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Coal|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
  labs(
-    x = "Year",
-    y = "Primary Energy (EJ/yr)")+ theme_bw()+
-   annotate("point",x=c(2005:2015),y=hist_pe_coal_elec$Value)
+    x = "Year"
+    )+ theme_bw()+
+   annotate("point",x=c(2005:2015),y=hist_pe_coal_elec$Value)+scale_color_manual(values = myColors)
 
 ggplot()+
   geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Gas|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
  labs(
-    x = "Year",
-    y = "Primary Energy (EJ/yr)")+ theme_bw()+
-   annotate("point",x=c(2005:2015),y=hist_pe_gas_elec$Value)
+    x = "Year")+ theme_bw()+
+   annotate("point",x=c(2005:2015),y=hist_pe_gas_elec$Value)+scale_color_manual(values = myColors)
+
+ggplot()+
+  geom_line(data = whole %>% filter(variable == "Primary Energy",period<2050,!model %in% c("India MARKAL")), aes(x=period,y=value,group=interaction(model,scen_name),color=model))+facet_grid(variable~scen_name)+
+ labs(
+    x = "Year")+ theme_bw()+annotate("point",x=c(2005:2015),y=hist_pe_tot$Value)+
+scale_color_manual(values = myColors)
 
 ```
 
@@ -278,44 +292,59 @@ This might be due to Coal CCS
 This might be the reason for the resurgence of coal in both the early and delay scenarios, albeit in a lower amount in the early action, due to early mitigation. The second model, India Markal 
 In both the early and delayed scenarios, the national models show 
 
-#### Share of emissions- Non-electricity sector
-```{r}
-
-```
-
 
 #### Secondary and Final Energy of Electricity (model scope and technology)
 ```{r SE_Electricity,warning=FALSE,fig.show='hold',out.width="50%"}
 # Secondary Energy of Electricity
-plotvar_1 <- grep("Secondary Energy|Electricity|",unique(whole$variable),value=T,fixed = T)
-whole_se_elec <-whole %>% filter(variable %in% plotvar_1 )
+plotvar_1 <- c("Secondary Energy|Electricity|Biomass|w/ CCS",
+             "Secondary Energy|Electricity|Biomass|w/o CCS",
+             "Secondary Energy|Electricity|Coal|w/ CCS",
+             "Secondary Energy|Electricity|Coal|w/o CCS",
+             "Secondary Energy|Electricity|Gas|w/ CCS",
+             "Secondary Energy|Electricity|Gas|w/o CCS",
+             "Secondary Energy|Electricity|Geothermal",
+             "Secondary Energy|Electricity|Hydro",
+             "Secondary Energy|Electricity|Nuclear",
+             "Secondary Energy|Electricity|Ocean",
+             "Secondary Energy|Electricity|Oil",
+             "Secondary Energy|Electricity|Other",
+             "Secondary Energy|Electricity|Solar",
+             "Secondary Energy|Electricity|Wind")
+whole_se_elec <- whole %>% filter(variable %in% plotvar_1 )
 ## adding all SE techs
 whole_se_elec_sum <- whole_se_elec %>% 
-  group_by(model,scenario,scen_name,period,model_scope,unit,modscen,unit) %>% 
+  group_by(scen_name,model,period,model_scope,unit,scenario) %>% 
   summarise(value=sum(value)) %>% 
   mutate(variable="Secondary Energy|Electricity")
-  
+
+# SE|Coal|Electricity
+  whole_se_elec_coal <- whole %>% filter(variable=="Secondary Energy|Electricity|Coal")
+# SE|Gas|Electricity
+whole_se_elec_gas <- whole %>% filter(variable=="Secondary Energy|Electricity|Gas")
 # Historical SE
-hist_se_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010), Variable %in% grep("SE|Electricity",unique(hist_and_botmup$Variable),value=T,fixed = T))
+hist_se_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015), Variable %in% grep("SE|Electricity",unique(hist_and_botmup$Variable),value=T,fixed = T))
 hist_se_elec_sum <- hist_se_elec %>% 
   group_by(Region,Year) %>% 
   summarise(Value=sum(Value))
+hist_se_elec_coal <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015), Variable=="SE|Electricity|Coal (EJ/yr)")
+hist_se_elec_gas <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015), Variable=="SE|Electricity|Gas (EJ/yr)")
 
 # FE
 whole_fe_elec <- whole %>% filter(variable=="Final Energy|Electricity")
 # Historical FE
-hist_fe_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="FE|Electricity (EJ/yr)") 
+hist_fe_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2010),Variable =="FE|Electricity (EJ/yr)") 
 
 source("plotstyle.R")
 
-line_type_1(whole_se_elec_sum,hist_se_elec_sum,c(2005,2010))
-line_type_2(whole_se_elec_sum,hist_se_elec_sum,c(2005,2010))
-line_type_1(whole_fe_elec,hist_fe_elec,c(2005,2010))
-line_type_2(whole_fe_elec,hist_fe_elec,c(2005,2010))
+#line_type_1(whole_se_elec_sum,hist_se_elec_sum)
+line_type_2(whole_se_elec_sum,hist_se_elec_sum)
+#line_type_1(whole_fe_elec,hist_fe_elec)
+line_type_2(whole_fe_elec,hist_fe_elec)
+
 
 ggplot()+
   geom_bar(data=whole_se_elec %>% filter(period==2030) , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar_1))+
-  facet_grid(~model)+
+  facet_grid(scen_name~model)+
     theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))+
   labs(
     x="Scenario",
@@ -328,8 +357,51 @@ ggplot()+
   labs(
     x="Scenario",
     y = "Secondary Energy (EJ/yr) in 2050")
-```
 
+ggplot()+
+  geom_line(data = whole %>% filter(period<2050,variable=="Secondary Energy|Electricity|Coal") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(~scen_name)+
+ labs(
+    x = "Year",
+    y = "Secondary Energy|Electricity|Coal (EJ/yr)"
+    )+ theme_bw()+
+   annotate("point",x=c(2005:2015),y=hist_se_elec_coal$Value)+scale_color_manual(values = myColors)
+
+ggplot()+
+  geom_line(data = whole %>% filter(period<2050,variable=="Secondary Energy|Electricity|Gas") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(~scen_name)+
+ labs(
+    x = "Year",
+    y = "Secondary Energy|Electricity|Gas (EJ/yr)" )+ theme_bw()+
+   annotate("point",x=c(2005:2015),y=hist_se_elec_gas$Value)+
+  scale_color_manual(values = myColors)
+
+```
+What is Secondary Energy? It is the energy that is attained from the combustion of primary fuel into electricity. This is true for the fuels oil, gas, caol and biomass. For solar, as I see it in REMIND, the PE|Solar is the same as SE|Electricity|Solar till 2030 and then it diverges, but PE is always higher. Similar behavior for Wind. But more or less the PE numbers are same as SE. What is the role of SE in the energy sector? 
+
+Final energy|Elec is the point where energy costs are given, it is the electricity coming at the meter. 
+* The Historical values agree well with past model data. This means that the definition across models is very similar. 
+* Large deviation in the Final Energy in 2050. Final energy increases because of basic demand increase, so people need more energy as incomes increase (country as a whole), then electricity demand depends on the structure of the economy(service or manufacturing, hybrid etc.), and then how much substitution is possible with solids e.g., in industry.  Still most models have around 10-15 EJ/y FE:Elec , a couple between 20 and 25, and one has 30 EJ. The national model AIM-Enduse sitts quite well in the range of global model results. 
+* The total SE:Elec values seem to have a higher spread compared to FE, the pattern for SE and FE is not similar! This can be later explored in the Transmission losses which is the share of the FE with the PE.
+* Why does AIM/Enduse do well in Finaly Energy numbers but not in Secondary Energy (reporting or definition error).
+
+* There are some models which show a decrease in FE upon the start of climate mitigation. For e.g., AIM, IMAGE, WITCH.
+
+** Secondayry energy by fuel type**
+* Plot only early action, then only delay, then compare the first wit the other. Do this excercise for both 2030 and 2050, then comment on the difference between 2030 and 2050.
+
+** Early action** 
+AIM- similar shares of Wind and Hydro; similar shares of nuclear and solar, more wind than solar. coal less than each renewable energy, gas lowest.
+AIM/ENDUSE: Similar shares for solar, gas, and coal w o CCS. Coal w CCS similar share to nuclear and hydro. much more solar potential than wind. 
+COPPE: largest share of hydro, similar gas and coal values.very low nuclear and wind, almost no solar.
+DNE: almost all gas, next is nuclear. Very low wind, solar, and hydro potential. 
+IMAGE: Same nuclear as coal. hydro more than solar or wind (also combined solar and wind). 
+INDIA MARKAL: Arund 60% coal share, 20%solar, very little nuclear, wind half of solar
+Across all early action scenarios, AIM v2.1 and AIM/CGE have exactly the energy mix. 
+
+
+
+Questions:
+
+Why doesn't the model SE|Elec match with the historical data? Seems to be a systematic shift?. Also , the national AIM Enduse seems to be way off. Add this to the questions you will ask them.
 
 #### Transmission losses
 ```{r Elec_Efficiency,warning=FALSE,fig.show='hold',out.width="50%"}
@@ -344,17 +416,17 @@ whole_se_elec_sum <- whole_se_elec_sum %>%
 hist_elec_eff <- transform(hist_se_elec_sum,efficiency=hist_fe_elec$Value/Value)
 #names(hist_elec_eff)[4] <- "Value"
 
-ggplot()+
-  geom_line(data = whole_se_elec_eff , aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
-   labs(
-    x = "Year" ,
-    y = "Elec. Efficiency",
-    color = "Model Scope",
-    linetype = "Scenario Type"
-  ) +
-  theme_bw()+ 
-  coord_cartesian(xlim = c(2005,2050))+
-  annotate(geom = "point",x =c(2005,2010),y=hist_elec_eff$efficiency)
+# ggplot()+
+#   geom_line(data = whole_se_elec_eff , aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
+#    labs(
+#     x = "Year" ,
+#     y = "Elec. Efficiency",
+#     color = "Model Scope",
+#     linetype = "Scenario Type"
+#   ) +
+#   theme_bw()+ 
+#   coord_cartesian(xlim = c(2005,2050))+
+#   annotate(geom = "point",x =c(2005:2015),y=hist_elec_eff$efficiency)
 
 ggplot()+
   geom_line(data = whole_se_elec_eff %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=scen_name,alpha=model)) +
@@ -367,21 +439,21 @@ geom_line(data = whole_se_elec_eff %>% filter(!model %in% c("India MARKAL","AIM/
     linetype = "Scenario Type")+
   theme_bw()+
   coord_cartesian(xlim = c(2005,2050))+
-  annotate(geom = "point",x =c(2005,2010),y=hist_elec_eff$efficiency)
+  annotate(geom = "point",x =c(2005:2015),y=hist_elec_eff$efficiency)
 
-# line_type_1(whole_se_elec_eff,hist_elec_eff,c(2005,2010))
-# line_type_2(whole_se_elec_eff,hist_elec_eff,c(2005,2010))
-# #hist_fe <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005,2010),Variable =="FE|Electricity (EJ/yr)") 
+# line_type_1(whole_se_elec_eff,hist_elec_eff,c(2005:2015))
+# line_type_2(whole_se_elec_eff,hist_elec_eff,c(2005:2015))
+# #hist_fe <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="FE|Electricity (EJ/yr)") 
 # ggplot(whole_fe %>% filter(scen_name=="Early action" & period<2050))+
 #   geom_line(aes(x = period,y = value,color=model_scope,linetype=model)) +
 #   facet_grid(~variable)
 
-# line_type_1(whole_fe,hist_fe_elec,c(2005,2010))
-# line_type_2(whole_fe,hist_fe_elec,c(2005,2010))
+# line_type_1(whole_fe,hist_fe_elec)
+# line_type_2(whole_fe,hist_fe_elec)
 #### Coal capacity, generation and  
 ```
 
-#### Primary and Secondary Energy of coal plants
+#### Coal Capacity
 ```{r coal_plant_eff,warning=FALSE,fig.show='hold',out.width="50%"}
 ## Efficiency of coal plants
 
@@ -407,9 +479,10 @@ whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/
 hist_coal_cap <- hist_and_botmup%>% filter(Region=="IND", Variable =="Operating")
   hist_coal_cap$Value <- hist_coal_cap$Value/1000
 
-  line_type_1(whole_coal_cap,hist_coal_cap,2018)
-  line_type_2(whole_coal_cap,hist_coal_cap,2018)
-  ggplot()+
+  # line_type_1(whole_coal_cap,hist_coal_cap)
+  line_type_2(whole_coal_cap,hist_coal_cap)
+  
+ggplot()+
   geom_line(data = whole_se_coal_elec_eff , aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
    labs(
     x = "Year" ,
@@ -420,8 +493,6 @@ hist_coal_cap <- hist_and_botmup%>% filter(Region=="IND", Variable =="Operating"
   theme_bw()+ 
   coord_cartesian(xlim = c(2005,2050))
 ```
-  
-  
   
 #### Cumulative Emissions 2011-2050
 ```{r cum_emi,warning=FALSE}
@@ -451,19 +522,20 @@ ggplot()+
 
 ```
 
-#### Capital Cost of Solar PV
+#### Capital Cost of Solar PV vs. Coal
 ```{r capital cost,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
 #plot capital cost
-plotvar <- c("Capital Cost|Electricity|Solar|PV")
+# plotvar <- c("Capital Cost|Electricity|Solar|PV")
+plotvar <- c("Capital Cost|Electricity|Coal|w/o CCS","Capital Cost|Electricity|Solar|PV" )
 whole_cap_cost <- whole[whole$variable==plotvar,]
 localrate = 0.015 #https://www.xe.com/currencycharts/?from=INR&to=USD&view=10Y
 whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
-proj_iea <- hist_and_botmup %>% filter(Region=="IND", Year %in% seq(2015,2040,5),Variable =="spv",Source=="IEA_WEO") 
+proj_iea <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2015:2040),Variable =="pc",Source=="IEA_WEO") 
 
-line_type_1(whole_cap_cost,proj_iea,seq(2015,2040,5))
-line_type_2(whole_cap_cost,proj_iea,seq(2015,2040,5))
+line_type_1(whole_cap_cost,proj_iea)
+line_type_2(whole_cap_cost,proj_iea)
 ```
-? historical PV costs
+
 
 
 
