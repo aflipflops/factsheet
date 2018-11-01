@@ -278,7 +278,7 @@ whole_cum <- whole_emi %>%
 
 
 ggplot()+
-  geom_bar(data=whole_fe_elec %>% filter(period==2030) , aes(x=model,y=value, group=interaction(model,scen_name),fill=scen_name),position="dodge", stat = "identity")+
+  geom_bar(data=whole_cum %>% filter(period==2030) , aes(x=model,y=value, group=interaction(model,scen_name),fill=scen_name),position="dodge", stat = "identity")+
   labs(
     x = "Model name" ,
     y = "Final Energy of electricity in 2030",
@@ -349,7 +349,7 @@ line_type_2(whole_se_elec_sum,hist_se_elec_sum)
 ```
 
 
-#### Secondary Energy  coal
+#### Secondary Energy coal
 ```{r SE_coal}
 # SE|Coal|Electricity
 whole_se_elec_coal <- whole %>% filter(variable=="Secondary Energy|Electricity|Coal")
@@ -684,17 +684,20 @@ ggplot()+
 
 
 #### Capacity Factor
-The capacity factor of a plant is defined as the fraction of time it is available in a year for electricity generation.$$  $$
 
 ```{r}
-# removing observations in whole_se_coal that are not in whole_cap_coal
- 
-# whole_se_coal <- whole %>% 
-#   filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","AIM/Enduse 3.0 - INDC2030_low_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3")) %>% 
-#   mutate(cap_factor=value*277777.778/(whole_coal_cap$value*8760)) %>%   
-#   mutate(capacity=whole_coal_cap$value) %>% 
-#   filter(capacity!=0)
-#                         
+ # removing observations in whole_se_coal that are not in whole_cap_coal
+#
+whole_try <- whole_se_elec_coal %>%
+  filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3"))
+whole_coal_cap <- whole_coal_cap
+
+ whole_cap_factor <- whole_se_elec_coal %>%
+  filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3")) %>%
+  mutate(cap_factor=value*277777.778/(whole_coal_cap$value*8760)) %>%
+   mutate(capacity=whole_coal_cap$value) %>%
+   filter(capacity!=0)
+
 # ggplot()+
 #   geom_line(data = whole_se_coal, aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
 #    labs(
@@ -703,7 +706,7 @@ The capacity factor of a plant is defined as the fraction of time it is availabl
 #     color = "Model Scope",
 #     linetype = "Scenario Type"
 #   ) +
-#   theme_bw()+ 
+#   theme_bw()+
 #   coord_cartesian(xlim = c(2005,2050))
 
 ```
@@ -749,39 +752,17 @@ ggplot()+
 
 ```
 
-### Primary Energy
+### Primary Energy Total
 ```{r}
-ggplot()+
-  geom_col(data=whole_cap_elec,aes(x=model,y=value,group=interaction(scen_name,variable,model),fill=variable))+
-  scale_fill_manual(values=plotstyle(plotvar_1))+
-  xlab("Model - Scenario")+
-  geom_text(data=whole_cap_elec,aes(x=model,y=1200,label=scen_name,hjust="right"),color="red",size=2.5)+coord_flip()+
-  ylim(0,1300)+ theme_bw()+ylab("Power Capacity (GW)")+ 
-# geom_point(data=whole_l,aes(x=modscen,y=value))
-ggsave(file="Capacity_IND.png",width=8)
-```
-```{r}
+#### DATA
 whole_pe_fossil <- whole %>% filter(variable %in% c("Primary Energy|Coal|Electricity","Primary Energy|Gas|Electricity"))
 
-# "Primary Energy|Coal|w/ CCS","Primary Energy|Coal|w/o CCS" ,"Primary Energy|Gas|w/ CCS"  , "Primary Energy|Gas|w/o CCS","Primary Energy|Oil|w/ CCS" , "Primary Energy|Oil|w/o CCS",
+
 hist_pe_tot <- hist_and_botmup %>% filter(Variable=="PE (EJ/yr)",Year %in% c(2005:2015),Region=="IND")
 hist_pe_coal_elec <- hist_and_botmup %>% filter(Variable=="PE|Coal|Electricity (EJ/yr)",Year %in% c(2005:2015),Region=="IND")
 hist_pe_gas_elec <- hist_and_botmup %>% filter(Variable=="PE|Gas|Electricity (EJ/yr)",Year %in% c(2005:2015),Region=="IND")
 
-
-
-ggplot()+
-  geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Coal|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
- labs(
-    x = "Year"
-    )+ theme_bw()+
-   annotate("point",x=c(2005:2015),y=hist_pe_coal_elec$Value)+scale_color_manual(values = myColors)
-
-ggplot()+
-  geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Gas|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
- labs(
-    x = "Year")+ theme_bw()+
-   annotate("point",x=c(2005:2015),y=hist_pe_gas_elec$Value)+scale_color_manual(values = myColors)
+#### PLOTS
 
 ggplot()+
   geom_line(data = whole %>% filter(variable == "Primary Energy",period<2050,!model %in% c("India MARKAL")), aes(x=period,y=value,group=interaction(model,scen_name),color=model))+facet_grid(variable~scen_name)+
@@ -790,3 +771,24 @@ ggplot()+
 scale_color_manual(values = myColors)
 
 ```
+#### Primary Energy Coal for Electricity
+```{r}
+ggplot()+
+  geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Coal|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
+ labs(
+    x = "Year"
+    )+ theme_bw()+
+   annotate("point",x=c(2005:2015),y=hist_pe_coal_elec$Value)+scale_color_manual(values = myColors)
+```
+
+#### Primary Energy Gas for Electricity
+```{r}
+ggplot()+
+  geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Gas|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
+ labs(
+    x = "Year")+ theme_bw()+
+   annotate("point",x=c(2005:2015),y=hist_pe_gas_elec$Value)+scale_color_manual(values = myColors)
+```
+
+
+
