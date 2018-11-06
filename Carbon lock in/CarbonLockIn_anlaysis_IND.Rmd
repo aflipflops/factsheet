@@ -104,6 +104,8 @@ save(whole,file="data_IND_2.RData")
 ```{r,echo=FALSE}
 # load("data_IND.RData")
 load("data_IND_2.RData")# with all variables except diagnostics
+whole <- whole %>% 
+  filter(!model=="COPPE-COFFEE 1.0")
 ```
 
 
@@ -299,6 +301,8 @@ line_type_2(whole_emi_elec_share,hist_emi_elec_share)+
   coord_cartesian(ylim=c(0.75,0))+
   geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="global"),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
 geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="national"),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
+
+
 ```
 
 #### Cumulative Emissions 2011-2050
