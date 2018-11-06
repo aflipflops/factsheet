@@ -197,7 +197,7 @@ line_type_1 <- function(data_s,hist_s){
 line_type_2 <- function(data_s,hist_s){
   ggplot()+
   geom_line(data = data_s %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model),size=1.5) +
-geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name),size=1)+
+geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"),period<2051), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name),size=1)+
     labs(
     x = "Year" ,
     y = paste(data_s$variable,"(",data_s$unit,")"),
@@ -209,7 +209,8 @@ geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"
   scale_colour_manual(values = myColors)+
   # scale_colour_brewer(palette = "Set1")+
   scale_alpha_discrete(range = c(0.95, 0.60))+
-  annotate(geom = "point",x = as.numeric(as.character(hist_s$Year)),y=hist_s$Value,colour = "red",size=1.5)
+    geom_point(data = hist_s,aes(x = as.numeric(as.character(Year)),y=Value),colour = "black",size=2.5,shape=17,color="white")
+ 
   # ggsave(file=paste(gsub(c("\\||\\/"),"_",unique(data_s$variable)),"_2",".png",sep=""))
   }
 
@@ -221,18 +222,26 @@ geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"
 #### Energy sector CO2 emissions
 ```{r co2 energy emissions,fig.show='hold',out.width="50%",warning=FALSE}
 ########## DATA
-whole_emi <- whole[whole$variable=="Emissions|CO2",]
+whole_emi <- whole[whole$variable=="Emissions|CO2|Energy",]
+# Finding the min and max values for each time-step
+whole_emi_m <- whole_emi %>% 
+  filter(period<2051) %>% 
+  group_by(period,model_scope) %>% 
+  summarise(minimum=min(value),maximum=max(value))
+
 
 # historical emissions //India// Fossil Fuel and Industry
 hist_emi <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="Emi|CO2|Energy (Mt CO2/yr)") 
 
-whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
-# historical emissions //India// Fossil Fuel and Industry
-hist_emi_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="Emi|CO2|Energy|Supply|Electricity (Mt CO2/yr)") 
+
 
 ####### PLOT
 #line_type_1(whole_emi,hist_emi)
-line_type_2(whole_emi,hist_emi)
+line_type_2(whole_emi,hist_emi)+
+  geom_ribbon(data = whole_emi_m %>% filter(model_scope=="global"),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
+geom_ribbon(data = whole_emi_m %>% filter(model_scope=="national"),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
+  
+
 
 
 ```
@@ -242,20 +251,35 @@ line_type_2(whole_emi,hist_emi)
 ```{r co2 electricity emissions,fig.show='hold',out.width="50%",warning=FALSE}
 ########### DATA
 whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
+
+whole_emi_elec_m <- whole_emi_elec %>% 
+  filter(period<2051) %>% 
+  group_by(period,model_scope) %>% 
+  summarise(minimum=min(value),maximum=max(value))
+
 # historical emissions //India// Fossil Fuel and Industry
 hist_emi_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="Emi|CO2|Energy|Supply|Electricity (Mt CO2/yr)") 
 
 ########## PLOT
 #line_type_1(whole_emi_elec,hist_emi_elec)
-line_type_2(whole_emi_elec,hist_emi_elec)
+line_type_2(whole_emi_elec,hist_emi_elec)+
+  geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="global"),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
+geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="national"),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
 ```
 
 #### Share of electricity emissions to energy emissions
 ```{r co2 share of elec_emissions,fig.show='hold',out.width="50%",warning=FALSE}
 ######### DATA
+whole_emi <- whole_emi %>% 
+  filter(period<=2050) %>% 
+  arrange(modscen)
+
 whole_emi_elec_share <- whole_emi_elec %>% 
-  mutate(share=value/whole_emi$value) %>% 
-  filter(period<=2050) 
+  filter(period<=2050,!modscen %in% c("WITCH2016 - NPi2020_1000_V4", "WITCH2016 - INDC2030i_1000_V4")) %>% 
+  arrange(modscen) %>% 
+  mutate(share=value/whole_emi$value) 
+  
+
 whole_emi_elec_share$variable <- "Emissions|CO2|Energy|Supply|Electricity|Share"
 whole_emi_elec_share$unit <- ""
 whole_emi_elec_share$value <- whole_emi_elec_share$share
@@ -263,8 +287,18 @@ hist_emi_elec_share <- hist_emi_elec %>%
   mutate(share=hist_emi_elec$Value/hist_emi$Value)
 hist_emi_elec_share$Value <- hist_emi_elec_share$share
 
+
+whole_emi_elec_share_m <- whole_emi_elec_share %>% 
+  filter(period<2051) %>% 
+  group_by(period,model_scope) %>% 
+  summarise(minimum=min(value),maximum=max(value))
+
+
 ########## PLOT
-line_type_2(whole_emi_elec_share,hist_emi_elec_share)+coord_cartesian(ylim=c(0.75,0))
+line_type_2(whole_emi_elec_share,hist_emi_elec_share)+
+  coord_cartesian(ylim=c(0.75,0))+
+  geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="global"),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
+geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="national"),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
 ```
 
 #### Cumulative Emissions 2011-2050
@@ -530,35 +564,8 @@ geom_line(data = whole_se_elec_eff %>% filter(!model %in% c("India MARKAL","AIM/
 
 ```
 
-
-#### Efficiency of coal plants
-```{r}
-
-whole_pe_coal_elec <- whole %>%
-                  filter(variable=="Primary Energy|Coal|Electricity", !modscen %in% c("AIM/Enduse 3.0 - INDC2030_low_V3" ,"AIM/Enduse 3.0 - NPi2020_low_V3"))%>% 
-                  arrange(modscen)
-whole_se_coal_elec <- whole %>% 
-                      filter(variable %in% c("Secondary Energy|Electricity|Coal"),!model %in% c("COPPE-COFFEE 1.0")) %>%
-                      arrange(modscen)
-
-whole_se_coal_elec_eff <- transform(whole_se_coal_elec,efficiency=whole_se_coal_elec$value/whole_pe_coal_elec$value) %>% 
-  filter(model!="MESSAGEix-GLOBIOM_1.0")
-  
-
-ggplot()+
-  geom_line(data = whole_se_coal_elec_eff , aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=model_scope,color=model)) +
-   labs(
-    x = "Year" ,
-    y = "Plant efficiency",
-    color = "Model Scope",
-    linetype = "Scenario Type"
-  ) +
-  theme_bw()+ 
-  coord_cartesian(xlim = c(2005,2050))
-  
-```
-
-### Coal Capacity
+### Capacity
+#### Coal Capacity
 ```{r coal_plant_eff,warning=FALSE,fig.show='hold',out.width="50%"}
 
 whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/o CCS","Capacity|Electricity|Coal|w/ CCS")) %>% group_by(region,unit,period,modscen,model_scope,scenario,model_scope,model,scen_name) %>% 
@@ -596,40 +603,8 @@ line_type_2(whole_coal_cap,hist_coal_cap[hist_coal_cap$Variable=="Operating",])+
   
 
 ```
-  
 
-### Capital Cost of Solar PV 
-```{r capital cost solar,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
-#plot capital cost
-plotvar <- c("Capital Cost|Electricity|Solar|PV","Capital Cost|Electricity|Solar")
-
-#plotvar <- c("Capital Cost|Electricity|Coal|w/o CCS","Capital Cost|Electricity|Solar|PV" )
-whole_cap_cost <- whole[whole$variable==plotvar,]
-localrate = 0.02 #https://www.xe.com/currencycharts/?from=INR&to=USD&view=10Y
-whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
-proj_iea <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2015:2040),Variable =="spv",Source=="IEA_WEO") 
-
-#line_type_1(whole_cap_cost,proj_iea)
-line_type_2(whole_cap_cost,proj_iea)
-```
-
-### Capital Cost of Wind onshore
-```{r capital cost wind,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
-#plot capital cost
-plotvar <- c("Capital Cost|Electricity|Wind|Onshore")
-#plotvar <- c("Capital Cost|Electricity|Coal|w/o CCS","Capital Cost|Electricity|Solar|PV" )
-whole_cap_cost <- whole[whole$variable==plotvar,]
-localrate = 0.02 #https://www.xe.com/currencycharts/?from=INR&to=USD&view=10Y
-whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
-proj_iea <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2015:2040),Variable =="wind",Source=="IEA_WEO") 
-
-#line_type_1(whole_cap_cost,proj_iea)
-line_type_2(whole_cap_cost,proj_iea)
-```
-
-
-### Cumulative Coal Capacity
-Make a chart showing the current coal capacity in various models, the added capacity in various model vs. the planned and under-construction capacity.
+#### Cumulative Coal Capacity
 ```{r}
 whole_coal_cap <- whole %>%  filter(variable=="Capacity|Electricity|Coal|w/o CCS" )
 whole_coal_cap_add <- whole_coal_cap %>% 
@@ -639,16 +614,9 @@ whole_coal_cap_add <- whole_coal_cap %>%
   summarise(add=diff(value)) %>% 
   mutate(period="2020-2030")
 
-whole_coal_cap <- whole %>%  filter(variable=="Capacity|Electricity|Coal|w/o CCS" )
-whole_coal_cap_add <- whole_coal_cap %>% 
-  filter(period %in% c(2020,2040)) %>% 
-  group_by(model,modscen,scen_name,model_scope) %>% 
-  arrange(period) %>% 
-  summarise(add=diff(value)) %>% 
-  mutate(period="2020-2030")
   
 
-line_type_2(whole_coal_cap_add,hist_emi)
+# line_type_2(whole_coal_cap_add,hist_emi)
 
 
 hist_coal_cap <- hist_and_botmup %>% filter(Source=="EndCoal",Region=="IND", Variable %in% c("Operating","Construction","Announced + Pre-permit + Permitted")) %>% 
@@ -656,7 +624,7 @@ hist_coal_cap <- hist_and_botmup %>% filter(Source=="EndCoal",Region=="IND", Var
 names(hist_coal_cap)[4] <- "variable"
 names(hist_coal_cap)[5] <- "value"
 hist_coal_cap$Value <- hist_coal_cap$value
-  mutate(new=Value[Variable=="Construction"]+Value[Variable=="Announced + Pre-permit + Permitted"])
+  # mutate(new=Value[Variable=="Construction"]+Value[Variable=="Announced + Pre-permit + Permitted"])
 
 
 ggplot()+
@@ -669,50 +637,10 @@ ggplot()+
   scale_x_discrete(labels = function(variable) str_wrap(variable, width = 10))+theme_bw()
 
 
-ggplot()+
-  geom_bar(data=whole_se_elec %>% filter(period %in% c(2030),model_scope=="national"),aes(x=as.factor(period),y=percentage,group=variable,fill=variable),position = position_stack(),stat = "identity",color="red",stroke = 2)+
-    scale_fill_manual(values=plotstyle(plotvar_1))+
-  facet_grid(scen_name~model)+
-    theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))+
-  labs(x="Period",
-    y = "Secondary Energy shares in 2030")+
-    geom_bar(data=whole_se_elec %>% filter(period %in% c(2030),model_scope=="global"),aes(x=as.factor(period),y=percentage,group=variable,fill=variable),position = position_stack(),stat = "identity")+
-    scale_fill_manual(values=plotstyle(plotvar_1))+
-  facet_grid(scen_name~model)
 
-```
+```  
 
-
-#### Capacity Factor
-
-```{r}
- # removing observations in whole_se_coal that are not in whole_cap_coal
-#
-whole_try <- whole_se_elec_coal %>%
-  filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3"))
-whole_coal_cap <- whole_coal_cap
-
- whole_cap_factor <- whole_se_elec_coal %>%
-  filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3")) %>%
-  mutate(cap_factor=value*277777.778/(whole_coal_cap$value*8760)) %>%
-   mutate(capacity=whole_coal_cap$value) %>%
-   filter(capacity!=0)
-
-# ggplot()+
-#   geom_line(data = whole_se_coal, aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=scen_name,color=model_scope)) +
-#    labs(
-#     x = "Year" ,
-#     y = "Capacity Factor",
-#     color = "Model Scope",
-#     linetype = "Scenario Type"
-#   ) +
-#   theme_bw()+
-#   coord_cartesian(xlim = c(2005,2050))
-
-```
-
-
-# Renewable Energy Capacity
+#### Renewable Energy Capacity
 ```{r REN capcacity}
 
 plotvar_1 <- c("Capacity|Electricity|Biomass|w/ CCS",
@@ -746,11 +674,112 @@ ggplot()+
     geom_bar(data=whole_cap_elec %>% filter(period %in% c(2030),model_scope=="global"),aes(x=as.factor(period),y=value,group=variable,fill=variable),position = "fill",stat = "identity")+
     scale_fill_manual(values=plotstyle(plotvar_1))+
   facet_grid(scen_name~model)
+
+####### Absolute capacity
 ggplot()+
-  geom_bar(data=whole_cap_elec , aes(x=period,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+facet_grid(period~model)
+  geom_bar(data=whole_cap_elec , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+facet_grid(period~model)+
+   scale_fill_manual(values=plotstyle(plotvar_1))+
+      theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))
   
 
 ```
+
+
+### Coal Plants
+#### Efficiency of coal plants
+```{r}
+
+whole_pe_coal_elec <- whole %>%
+                  filter(variable=="Primary Energy|Coal|Electricity", !modscen %in% c("AIM/Enduse 3.0 - INDC2030_low_V3" ,"AIM/Enduse 3.0 - NPi2020_low_V3"))%>% 
+                  arrange(modscen)
+whole_se_coal_elec <- whole %>% 
+                      filter(variable %in% c("Secondary Energy|Electricity|Coal"),!model %in% c("COPPE-COFFEE 1.0")) %>%
+                      arrange(modscen)
+
+whole_se_coal_elec_eff <- transform(whole_se_coal_elec,efficiency=whole_se_coal_elec$value/whole_pe_coal_elec$value) %>% 
+  filter(model!="MESSAGEix-GLOBIOM_1.0")
+  
+
+ggplot()+
+  geom_line(data = whole_se_coal_elec_eff , aes(x=period,y=efficiency,group=interaction(model,scen_name),linetype=model_scope,color=model)) +
+   labs(
+    x = "Year" ,
+    y = "Plant efficiency",
+    color = "Model Scope",
+    linetype = "Scenario Type"
+  ) +
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050))
+  
+```
+#### Capacity Factor
+
+```{r}
+ # removing observations in whole_se_coal that are not in whole_cap_coal
+#
+whole_se_elec_coal_2 <- whole_se_elec_coal %>%
+  filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3")) %>% 
+  arrange(modscen)
+
+
+ whole_cap_factor <- whole_coal_cap %>%
+  filter(!modscen %in% c("AIM/Enduse 3.0 - NPi2020_low_V3")) %>% 
+    arrange(modscen)
+
+ 
+whole_cap_factor$cap_factor = whole_se_elec_coal_2$value*277777.778/(whole_cap_factor$value*8760)   
+whole_cap_factor <- whole_cap_factor %>% filter(value!=0)
+
+ggplot()+
+  geom_line(data = whole_cap_factor, aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=scen_name,color=model)) +
+   labs(
+    x = "Year" ,
+    y = "Capacity Factor",
+    color = "Model Scope",
+    linetype = "Scenario Type"
+  ) +
+  theme_bw()+
+  coord_cartesian(xlim = c(2005,2050))
+
+```
+
+
+
+### Capital Costs
+#### Capital Cost of Solar PV 
+```{r capital cost solar,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+#plot capital cost
+plotvar <- c("Capital Cost|Electricity|Solar|PV","Capital Cost|Electricity|Solar")
+
+#plotvar <- c("Capital Cost|Electricity|Coal|w/o CCS","Capital Cost|Electricity|Solar|PV" )
+whole_cap_cost <- whole[whole$variable==plotvar,]
+localrate = 0.02 #https://www.xe.com/currencycharts/?from=INR&to=USD&view=10Y
+whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
+proj_iea <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2015:2040),Variable =="spv",Source=="IEA_WEO") 
+
+#line_type_1(whole_cap_cost,proj_iea)
+line_type_2(whole_cap_cost,proj_iea)
+```
+
+#### Capital Cost of Wind onshore
+```{r capital cost wind,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
+#plot capital cost
+plotvar <- c("Capital Cost|Electricity|Wind|Onshore")
+#plotvar <- c("Capital Cost|Electricity|Coal|w/o CCS","Capital Cost|Electricity|Solar|PV" )
+whole_cap_cost <- whole[whole$variable==plotvar,]
+localrate = 0.02 #https://www.xe.com/currencycharts/?from=INR&to=USD&view=10Y
+whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
+proj_iea <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2015:2040),Variable =="wind",Source=="IEA_WEO") 
+
+#line_type_1(whole_cap_cost,proj_iea)
+line_type_2(whole_cap_cost,proj_iea)
+```
+
+
+
+
+
+
 
 ### Primary Energy Total
 ```{r}
