@@ -1,4 +1,3 @@
-
 ---
 title: "Carbon Lock-in task CD LINKS"
 author: "Aman Malik and Christoph Bertram"
@@ -7,8 +6,6 @@ output:
 html_document:
   toc: true
   toc_depth: 2
-pdf_document:
-    keep_tex: true
 ---
 
 ```{r global settings, include=FALSE}
@@ -32,6 +29,7 @@ library(tidyverse)
 library(reshape)
 library(data.table)
 library(RColorBrewer)
+library(knitr)
 ```
 
 ```{r all_data,include=FALSE,eval=FALSE,message=FALSE,purl=FALSE}
@@ -101,11 +99,12 @@ whole <- rbind(early,delay)
 fwrite(whole,"")
 save(whole,file="data_IND_2.RData")
 ```
+
 ```{r,echo=FALSE}
 # load("data_IND.RData")
 load("data_IND_2.RData")# with all variables except diagnostics
 whole <- whole %>% 
-  filter(!model=="COPPE-COFFEE 1.0")
+  filter(!model %in% c("COPPE-COFFEE 1.0","AIM/CGE"))
 ```
 
 
@@ -159,13 +158,6 @@ save(hist_and_botmup,file="HistandBotmup.RData")
 load("HistandBotmup.RData")
 ```
 
-### Objective
-The objective of the current task is to analyse and compare the structure of the Indian power sector under various mitigation regimes. It is often said that models are as good as the assumptions they are based on. 
-The primary one would be to understand what consequences follow from certain assumptions. Or the other way round, which assumptions are causing the divergent behaviour. The secondary aim is to comment upon the plausibility of the assumptions used by these models. 
-
-### Methodology
-
-Global Integrated Assessment Models (IAMs) informed national energy-economy models and national IAMs in terms of national emission budgets consistent with long-term climate targets. National models often focus on nation-specific development issues, and have a stronger grasp on technologies and policies. Indian budgets were defined as they are because the national teams said they cannot produce scenarios with lower budgets.
 
 #### Explanation of scenario names
 
@@ -176,8 +168,7 @@ Global Integrated Assessment Models (IAMs) informed national energy-economy mode
 
 ```{r generic plot functions}
 
-myColors <- brewer.pal(11,"Paired")
-#myColors <- rainbow_hcl(12)
+myColors <- brewer.pal(11,"Paired") # for unique colors on models
 names(myColors) <- as.character(unique(whole$model))
 
 # Writing a generic function for a line-type ggplot
@@ -198,8 +189,8 @@ line_type_1 <- function(data_s,hist_s){
 
 line_type_2 <- function(data_s,hist_s){
   ggplot()+
-  geom_line(data = data_s %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model),size=1.5) +
-geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"),period<2051), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name),size=1)+
+  geom_line(data = data_s %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0"),period>=2015), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model),size=1) +
+geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"),period<2051,period>=2015), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name))+
     labs(
     x = "Year" ,
     y = paste(data_s$variable,"(",data_s$unit,")"),
@@ -211,21 +202,22 @@ geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"
   scale_colour_manual(values = myColors)+
   # scale_colour_brewer(palette = "Set1")+
   scale_alpha_discrete(range = c(0.95, 0.60))+
-    geom_point(data = hist_s,aes(x = as.numeric(as.character(Year)),y=Value),colour = "black",size=2.5,shape=17,color="white")
+    geom_line(data = hist_s%>%mutate(dummy="Historical"),aes(x = as.numeric(as.character(Year)),y=Value,fill=dummy),size=1.5,shape=17)
  
   # ggsave(file=paste(gsub(c("\\||\\/"),"_",unique(data_s$variable)),"_2",".png",sep=""))
   }
 
 ```
 
-## Results and Discussion
+## Results 
 
 ### CO2 Emissions
 #### Energy sector CO2 emissions
 ```{r co2 energy emissions,fig.show='hold',out.width="50%",warning=FALSE}
 ########## DATA
-whole_emi <- whole[whole$variable=="Emissions|CO2|Energy",]
-# Finding the min and max values for each time-step
+  whole_emi <- whole[whole$variable=="Emissions|CO2|Energy",] 
+# Finding the min and max values for each time-step, required for ribbons
+
 whole_emi_m <- whole_emi %>% 
   filter(period<2051) %>% 
   group_by(period,model_scope) %>% 
@@ -237,20 +229,26 @@ hist_emi <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Var
 
 
 
-####### PLOT
+####### PLOTS
 #line_type_1(whole_emi,hist_emi)
+#
+### WITH RIBBONS
 line_type_2(whole_emi,hist_emi)+
-  geom_ribbon(data = whole_emi_m %>% filter(model_scope=="global"),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
-geom_ribbon(data = whole_emi_m %>% filter(model_scope=="national"),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
-  
+  geom_ribbon(data = whole_emi_m %>% filter(model_scope=="global",period>=2015),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
+geom_ribbon(data = whole_emi_m %>% filter(model_scope=="national",period>=2015),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
 
+#### WITHOUT RIBBONS
+line_type_2(whole_emi,hist_emi)
+
+## SAVING FORMAT
+# ggsave(filename = "energy_emissions.emf",device = "emf")
 
 
 ```
 
 
 #### Electricity sector emissions
-```{r co2 electricity emissions,fig.show='hold',out.width="50%",warning=FALSE}
+```{r co2 electricity emissions,fig.show='hold',message=FALSE,warning=FALSE}
 ########### DATA
 whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
 
@@ -259,19 +257,32 @@ whole_emi_elec_m <- whole_emi_elec %>%
   group_by(period,model_scope) %>% 
   summarise(minimum=min(value),maximum=max(value))
 
-# historical emissions //India// Fossil Fuel and Industry
+# historical emission
 hist_emi_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="Emi|CO2|Energy|Supply|Electricity (Mt CO2/yr)") 
 
-########## PLOT
+########## PLOTS
 #line_type_1(whole_emi_elec,hist_emi_elec)
+# WITH RIBBONS
+
 line_type_2(whole_emi_elec,hist_emi_elec)+
-  geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="global"),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
-geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="national"),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
+ geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="global",period>=2015),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
+geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="national",period>=2015),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")+coord_cartesian(ylim=c(0,2500))+ labs(y="CO2 Emissions from Electricity  (MtCO2/yr)")+theme(axis.text=element_text(size=12), axis.title=element_text(size=13,face="bold"))
+
+# WTHOUT RIBBONS
+line_type_2(whole_emi_elec,hist_emi_elec)
+
+# SAVING
+ggsave(filename = "energy_emissions_1.svg",height=5, width=6,device = "svg")
+ 
 ```
 
 #### Share of electricity emissions to energy emissions
-```{r co2 share of elec_emissions,fig.show='hold',out.width="50%",warning=FALSE}
+```{r co2 share of elec_emissions,message=FALSE,,warning=FALSE}
 ######### DATA
+whole_emi <- whole[whole$variable=="Emissions|CO2|Energy",] 
+hist_emi <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="Emi|CO2|Energy (Mt CO2/yr)") 
+
+
 whole_emi <- whole_emi %>% 
   filter(period<=2050) %>% 
   arrange(modscen)
@@ -281,7 +292,6 @@ whole_emi_elec_share <- whole_emi_elec %>%
   arrange(modscen) %>% 
   mutate(share=value/whole_emi$value) 
   
-
 whole_emi_elec_share$variable <- "Emissions|CO2|Energy|Supply|Electricity|Share"
 whole_emi_elec_share$unit <- ""
 whole_emi_elec_share$value <- whole_emi_elec_share$share
@@ -297,42 +307,85 @@ whole_emi_elec_share_m <- whole_emi_elec_share %>%
 
 
 ########## PLOT
+##### WITH RIBBONS
 line_type_2(whole_emi_elec_share,hist_emi_elec_share)+
   coord_cartesian(ylim=c(0.75,0))+
-  geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="global"),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
-geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="national"),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
+  geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="global",period>=2015),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
+geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="national",period>=2015),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")+theme(legend.text=element_text(size=10))
 
+##### WITHOUT RIBBONS
+line_type_2(whole_emi_elec_share,hist_emi_elec_share)
 
 ```
+#### Emissions Intensity
+```{r}
+#### CO2 per GWh"
+whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
+whole_emi_elec <- whole_emi_elec %>%  arrange(modscen)
+
+try_1 <- whole_se_elec_sum
+try_1$value <- (try_1$value*277777.78) # converting EJ to GWh
+
+try_1 <- try_1 %>% arrange(modscen)
+
+try_1 <- transform(try_1,emissionsperGwh=((whole_emi_elec$value)*1000)/try_1$value )# emissions are in MtCO2
+
+try_1$variable <- "Emissions Intensity"
+try_1$unit <- "kgCO2/kWh"
+try_1$value <- try_1$emissionsperGwh
+
+try_2 <- hist_se_elec_sum
+try_2$Value <- (try_2$Value*277777.78) # converting EJ to GWh
+try_2 <- transform(try_2,emissionsperGwh=((hist_emi_elec$Value)*1000)/try_2$Value )# emissions are in MtCO2
+try_2$Value <- try_2$emissionsperGwh
+line_type_2(try_1,try_2)+theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))
+ggsave("emissions_intensity.svg",device = "svg",height=5,width = 6)
+```
+
 
 #### Cumulative Emissions 2011-2050
 ```{r cum_emi,warning=FALSE}
+#### NEED TO CORRECT
 ### DATA 
-whole_cum <- whole_emi %>% 
-  filter(period>2010 & period<2055) %>% 
-  group_by(model,scen_name) %>% 
-  mutate(cumsum=cumsum(value)/1000) %>% 
+whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
+whole_cum <- whole_emi_elec %>%
+  filter(period>=2010 & period<2035) %>%
+  group_by(model,scen_name) %>%
+  mutate(cumsum=cumsum(value/1000)) %>%
   arrange(cumsum,desc(cumsum))
+  # whole_cum <- whole_emi_elec %>%
+  # filter(period>2030 & period<2055) %>%
+  # group_by(model,scen_name) %>%
+  # mutate(cumsum=cumsum(value/1000)) %>%
+  # arrange(cumsum,desc(cumsum))
+
+## Making table
+whole_cum_table <- whole_cum %>% 
+  filter(period==2050) %>% 
+  arrange(scen_name) %>% 
+  select(model,model_scope,scen_name,cumsum) %>% 
+  spread(c("scen_name"),cumsum)
 
 
-ggplot()+
-  geom_bar(data=whole_cum %>% filter(period==2030) , aes(x=model,y=value, group=interaction(model,scen_name),fill=scen_name),position="dodge", stat = "identity")+
-  labs(
-    x = "Model name" ,
-    y = "Final Energy of electricity in 2030",
-    fill = "Scenario Type",
-    alpha = "Model Scope"
-  ) +
-  # theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-  #scale_alpha_discrete(range = c(0.95, 0.55))
-  facet_grid(~model_scope,scales="free",space = "free_x")
+# ggplot()+
+#   geom_bar(data=whole_cum %>% filter(period==2050) , aes(x=model,y=cumsum, group=interaction(model,scen_name),fill=scen_name),position="dodge", stat = "identity")+
+#   labs(
+#     x = "Model name" ,
+#     y = "Cumulative Emissions/Power sector (2011-2050) (GtCO2)",
+#     fill = "Scenario Type",
+#     alpha = "Model Scope"
+#   ) +
+#   # theme_bw()+
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+#   #scale_alpha_discrete(range = c(0.95, 0.55))
+#   facet_grid(~model_scope,scales="free",space = "free_x")
 
 
 ```
 
-### Secondary Energy of Electricity
-```{r Secondary Energy,warning=FALSE,fig.show='hold',out.width="50%"}
+### Total Secondary Energy of Electricity
+```{r Secondary Energy,warning=FALSE,}
+source("plotstyle.R")
 plotvar_1 <- c("Secondary Energy|Electricity|Biomass|w/ CCS",
              "Secondary Energy|Electricity|Biomass|w/o CCS",
              "Secondary Energy|Electricity|Other",
@@ -358,13 +411,13 @@ plotvar_2 <- c("Secondary Energy|Electricity|Biomass|w/ CCS",
              "Secondary Energy|Electricity|Gas|w/o CCS",
              "Secondary Energy|Electricity|Coal|w/ CCS",
              "Secondary Energy|Electricity|Coal|w/o CCS")
-#whole_se_elec <- whole %>% filter(variable %in% plotvar_1 )
-whole_se_elec <- whole %>% filter(variable %in% plotvar_1)
 
+
+whole_se_elec <- whole %>% filter(variable %in% plotvar_1 )
 
 ### Total Secondary Energy of Electricity by adding all SE techs
 whole_se_elec_sum <- whole_se_elec %>% 
-  group_by(model, scenario,unit, period,modscen, model_scope, scen_name) %>% 
+  group_by(model, scenario,unit, period,modscen, model_scope, scen_name,region) %>% 
   summarise(value=sum(value)) %>% 
   mutate(variable="Secondary Energy|Electricity")
 
@@ -382,22 +435,126 @@ hist_se_elec_sum <- hist_se_elec %>%
   group_by(Region,Year) %>% 
   summarise(Value=sum(Value))
 
-#line_type_1(whole_se_elec_sum,hist_se_elec_sum)
 line_type_2(whole_se_elec_sum,hist_se_elec_sum)
+
+```
+#### Secondary Energy Electricity high_carbon
+```{r SE_high_carbon,message=FALSE,warning=FALSE}
+source("plotstyle.R")
+## high carbon fuels
+high_carbon <- c("Secondary Energy|Electricity|Gas|w/o CCS",
+                 "Secondary Energy|Electricity|Coal|w/o CCS",
+                 "Secondary Energy|Electricity|Oil")
+whole_se_elec <- whole %>% filter(variable %in% high_carbon)
+
+####### ADDING HISTORICAL VALUES
+whole_se_elec <- whole %>% filter(variable %in% high_carbon)
+whole_se_elec <- whole_se_elec %>% 
+ add_row(model="GoI",value=3.55,variable="Secondary Energy|Electricity|Coal|w/o CCS",period=2030,scen_name="Early action",model_scope="2017") %>%
+ add_row(model="GoI",value=0.18,variable="Secondary Energy|Electricity|Gas|w/o CCS",period=2030,scen_name="Early action",model_scope="2017") %>%   
+    add_row(model="GoI",value=3.55,variable="Secondary Energy|Electricity|Coal|w/o CCS",period=2030,scen_name="Delayed action",model_scope="2017") %>%
+ add_row(model="GoI",value=0.18,variable="Secondary Energy|Electricity|Gas|w/o CCS",period=2030,scen_name="Delayed action",model_scope="2017") 
+
+# converting WJ to TWh  
+whole_se_elec$value <- whole_se_elec$value*277.778
+# shortening variable names
+whole_se_elec$variable <- mip::shorten_legend(whole_se_elec$variable)
+style_hc <- plotstyle(high_carbon)
+names(style_hc) <- mip::shorten_legend(names(style_hc))
+
+ggplot()+
+  geom_bar(data=whole_se_elec %>% filter(period==2030), aes(x=model,y=value, group=variable,fill=variable), position="stack",stat = "identity")+
+  labs(
+    x = "Model name" ,
+    y = "Generation in 2030 (TWh)",
+    fill = "High carbon",
+    alpha = "Model Scope"
+  ) +
+  # theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),axis.text=element_text(size=10), axis.title=element_text(size=14,face="bold"),strip.text.x = element_text(size = 12),strip.text.y = element_text(size = 10))+
+   scale_fill_manual(values=style_hc)+
+  #scale_alpha_discrete(range = c(0.95, 0.55))
+  facet_grid(scen_name~model_scope,scales="free",space = "free_x")+coord_cartesian(ylim=c(0,4000))+
+ggsave("high_carbon.svg",device = "svg",height=5,width = 6)
+```
+
+#### Secondary Energy Electrictity low_carbon
+```{r SE_low_carbon,message=FALSE,warning=FALSE}
+source("plotstyle.R")
+### low carbon fuels
+low_carbon <- c("Secondary Energy|Electricity|Coal|w/ CCS",
+                 "Secondary Energy|Electricity|Gas|w/ CCS",
+                "Secondary Energy|Electricity|Hydro",
+                 "Secondary Energy|Electricity|Nuclear",
+                 "Secondary Energy|Electricity|Solar",
+                 "Secondary Energy|Electricity|Wind",
+                "Secondary Energy|Electricity|Biomass|w/o CCS",
+                "Secondary Energy|Electricity|Biomass|w/ CCS")
+
+whole_se_elec <- whole %>% filter(variable %in% low_carbon)
+
+# Adding historical data (source Central Electricity Authority and sedon-hand source: Wikipedia article on Electricty in India)
+whole_se_elec_2 <- whole_se_elec %>% 
+  add_row(model="GoI",value=0.19,variable="Secondary Energy|Electricity|Wind",period=2030,scen_name="Early action",model_scope="2017") %>% 
+  add_row(model="GoI",value=0.09,variable="Secondary Energy|Electricity|Solar",period=2030,scen_name="Early action",model_scope="2017") %>% 
+  add_row(model="GoI",value=0.471,variable="Secondary Energy|Electricity|Hydro",period=2030,scen_name="Early action",model_scope="2017") %>% 
+  add_row(model="GoI",value=0.138,variable="Secondary Energy|Electricity|Nuclear",period=2030,scen_name="Early action",model_scope="2017") %>% 
+  add_row(model="GoI",value=0.0549,variable="Secondary Energy|Electricity|Biomass|w/o CCS",period=2030,scen_name="Early action",model_scope="2017") %>%
+  add_row(model="GoI",value=0.19,variable="Secondary Energy|Electricity|Wind",period=2030,scen_name="Delayed action",model_scope="2017") %>% 
+  add_row(model="GoI",value=0.09,variable="Secondary Energy|Electricity|Solar",period=2030,scen_name="Delayed action",model_scope="2017") %>% 
+  add_row(model="GoI",value=0.471,variable="Secondary Energy|Electricity|Hydro",period=2030,scen_name="Delayed action",model_scope="2017") %>% 
+  add_row(model="GoI",value=0.138,variable="Secondary Energy|Electricity|Nuclear",period=2030,scen_name="Delayed action",model_scope="2017") %>% 
+  add_row(model="GoI",value=0.0549,variable="Secondary Energy|Electricity|Biomass|w/o CCS",period=2030,scen_name="Delayed action",model_scope="2017") %>% 
+add_row(model="Nuclear",value=1.25,variable="Secondary Energy|Electricity|Nuclear_NDC",period=2030,scen_name="Delayed action",model_scope="Nuclear") %>% 
+     add_row(model="Nuclear",value=0.35,variable="Secondary Energy|Electricity|Nuclear_2023",period=2030,scen_name="Delayed action",model_scope="Nuclear") %>% 
+add_row(model="Nuclear",value=1.25,variable="Secondary Energy|Electricity|Nuclear_NDC",period=2030,scen_name="Early action",model_scope="Nuclear") %>% 
+     add_row(model="Nuclear",value=0.35,variable="Secondary Energy|Electricity|Nuclear_2023",period=2030,scen_name="Early action",model_scope="Nuclear")
+  
+  
+# converting from EJ to Gwh
+whole_se_elec_2$value <- whole_se_elec_2$value*277.778
+
+# shortening legends in data frame
+whole_se_elec_2$variable <- mip::shorten_legend(whole_se_elec_2$variable)
+
+# shortening legends in plotstyle for color matching
+style_lc <- plotstyle(low_carbon)
+names(style_lc) <- mip::shorten_legend(names(style_lc))
+
+###### LOW CARBON
+
+ggplot()+
+  geom_bar(data=whole_se_elec_2 %>% filter(period==2030), aes(x=model,y=value, group=variable,fill=variable), position="stack",stat = "identity")+
+  labs(
+    x = "Model name" ,
+    y = "Generation in 2030 (TWh)",
+    fill = "Low carbon",
+    alpha = "Model Scope"
+  ) +
+  # theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),axis.text=element_text(size=10), axis.title=element_text(size=14,face="bold"))+
+   scale_fill_manual(values=c(Nuclear_NDC="#ff66d9",Nuclear_2023="#ff6666",style_lc))+
+  #scale_alpha_discrete(range = c(0.95, 0.55))
+  facet_grid(scen_name~model_scope,scales="free",space = "free_x")+coord_cartesian(ylim=c(0,3000))
+ggsave("lowcarbon.svg",device = "svg",height=5,width = 6)
 ```
 
 
 #### Secondary Energy coal
-```{r SE_coal}
-# SE|Coal|Electricity
-whole_se_elec_coal <- whole %>% filter(variable=="Secondary Energy|Electricity|Coal")
+```{r SE_coal, message=FALSE,warning=FALSE}
+source("plotstyle.R")
+whole_se_elec_coal <- whole %>% filter(variable %in% c("Secondary Energy|Electricity|Coal|w/o CCS",
+                                                       "Secondary Energy|Electricity|Coal|w/ CCS")) %>% 
+  group_by(model, scenario,unit, period,modscen, model_scope, scen_name,region) %>% 
+  summarise(value=sum(value))
 
 hist_se_elec_coal <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),
                     Variable=="SE|Electricity|Coal (EJ/yr)")
-source("plotstyle.R")
+
+line_type_2(whole_se_elec_coal,hist_se_elec_coal)
 
 ggplot()+
-  geom_line(data = whole %>% filter(period<2050,variable=="Secondary Energy|Electricity|Coal|w/o CCS") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model,size=0.8))+facet_grid(~scen_name)+
+  geom_line(data = whole_se_elec_coal , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(~scen_name)+
  labs(
     x = "Year",
     y = "Secondary Energy|Electricity|Coal (EJ/yr)"
@@ -406,32 +563,48 @@ ggplot()+
 ```
 
 #### Seconday Energy gas
-```{r SE_gas}
+```{r SE_gas,message=FALSE,warning=FALSE}
 # SE|Gas|Electricity
-whole_se_elec_gas <- whole %>% filter(variable=="Secondary Energy|Electricity|Gas")
+whole_se_elec_gas <- whole %>% filter(variable %in% c("Secondary Energy|Electricity|Gas|w CCS","Secondary Energy|Electricity|Gas|w/o CCS"))%>% 
+ group_by(model, scenario,unit, period,modscen, model_scope, scen_name,region,variable) %>% 
+  summarise(value=sum(value))
 
 hist_se_elec_gas <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015), Variable=="SE|Electricity|Gas (EJ/yr)")
 
 ggplot()+
-  geom_line(data = whole %>% filter(period<2050,variable=="Secondary Energy|Electricity|Gas") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(~scen_name)+
+  geom_line(data =whole_se_elec_gas %>% filter(period<2050) , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(~scen_name)+
  labs(
     x = "Year",
-    y = "Secondary Energy|Electricity|Gas (EJ/yr)" )+ theme_bw()+
-   annotate("point",x=c(2005:2015),y=hist_se_elec_gas$Value)+
-  scale_color_manual(values = myColors)
-
+    y = "Secondary Energy|Electricity|Gas(EJ/yr)" )+ theme_bw()+
+   annotate("point",x=c(2005:2015),y=hist_se_elec_gas$Value)
+ 
+line_type_2(whole_se_elec_gas,hist_se_elec_gas)+ labs(
+    x = "Year",
+    y = "Secondary Energy|Electricity|Gas(EJ/yr)" )+theme(axis.text=element_text(size=10), axis.title=element_text(size=14,face="bold"))
+ggsave("elec_gas.svg",device = "svg",height=5,width = 6)
 source("plotstyle.R")
 
 ```
 
 
 #### Secondary Energy by all sources 
-```{r SE by source}
+```{r SE by source,message=FALSE,warning=FALSE}
+plotvar_1 <- c("Secondary Energy|Electricity|Biomass|w/ CCS",
+             "Secondary Energy|Electricity|Biomass|w/o CCS",
+             "Secondary Energy|Electricity|Other",
+             "Secondary Energy|Electricity|Geothermal",
+             "Secondary Energy|Electricity|Ocean",
+             "Secondary Energy|Electricity|Oil",
+             "Secondary Energy|Electricity|Hydro",
+             "Secondary Energy|Electricity|Nuclear",
+             "Secondary Energy|Electricity|Solar",
+             "Secondary Energy|Electricity|Wind",
+             "Secondary Energy|Electricity|Gas|w/ CCS",
+             "Secondary Energy|Electricity|Gas|w/o CCS",
+             "Secondary Energy|Electricity|Coal|w/ CCS",
+             "Secondary Energy|Electricity|Coal|w/o CCS")
+whole_se_elec <- whole %>% filter(variable %in% plotvar_1 )
 
-
-##### ABSOLUTE SE
-####### BAR PLOTS
-#### FOR 2030 and 2050
 ggplot(data=whole_se_elec %>% filter(period %in% c(2030,2050)))+
   geom_bar(aes(x=as.factor(period),y=value,group=variable,fill=variable),position = position_stack(),stat = "identity")+
     scale_fill_manual(values=plotstyle(plotvar_1))+
@@ -448,14 +621,7 @@ ggplot()+
   labs(
     x="Scenario",
     y = "Secondary Energy (EJ/yr) in 2030")
-#### ONLY for 2050
-ggplot()+
-  geom_bar(data=whole_se_elec %>% filter(period==2050) , aes(x=scen_name,y=value,group=variable,fill=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar_1))+
-  facet_grid(scen_name~model)+
-    theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))+
-  labs(
-    x="Scenario",
-    y = "Secondary Energy (EJ/yr) in 2050")
+
 
 ##### SE SHARES
 ggplot(data=whole_se_elec %>% filter(period %in% c(2030)))+
@@ -465,6 +631,37 @@ ggplot(data=whole_se_elec %>% filter(period %in% c(2030)))+
     theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))+
   labs(x="Period",
     y = "Secondary Energy shares in 2030")
+
+#### WITH FACET GRID ON NATIONAL AND GLOBAL  FOR DELAYED ACTION
+ggplot()+
+  geom_bar(data=whole_se_elec %>% filter(period==2030,scen_name=="Delayed action") , aes(x=model,y=value, group=variable,fill=variable),position="fill", stat = "identity",width = 0.5)+
+  labs(
+    x = "Model name" ,
+    y = "Share in Generation (2030)",
+    fill = "Scenario Type",
+    alpha = "Model Scope"
+  ) +
+  # theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+   scale_fill_manual(values=plotstyle(plotvar_1))+
+  #scale_alpha_discrete(range = c(0.95, 0.55))
+  facet_grid(~model_scope,scales="free",space = "free_x")+geom_hline(yintercept = 0.4)
+
+
+#### WITH FACET GRID ON NATIONAL AND GLOBAL  FOR EARLY ACTION
+ggplot()+
+  geom_bar(data=whole_se_elec %>% filter(period==2030,scen_name=="Early action") , aes(x=model,y=value, group=variable,fill=variable),position="fill", stat = "identity",width = 0.5)+
+  labs(
+    x = "Model name" ,
+    y = "Share in Generation (2030)",
+    fill = "Scenario Type",
+    alpha = "Model Scope"
+  ) +
+  # theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+   scale_fill_manual(values=plotstyle(plotvar_1))+
+  #scale_alpha_discrete(range = c(0.95, 0.55))
+  facet_grid(~model_scope,scales="free",space = "free_x")
 
 
 ### SEPERATING NATIONAL AND GLOBAL
@@ -487,25 +684,19 @@ ggplot()+
 ### Final Energy of Electricity
 ```{r Final energy,message=FALSE,warning=FALSE}
 ######### DATA
-# FE
+
 whole_fe_elec <- whole %>% filter(variable=="Final Energy|Electricity")
 
 # Historical FE
 hist_fe_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015),Variable =="FE|Electricity (EJ/yr)") 
 
 ############ PLOTS
-#### BAR PLOT
-ggplot()+
-  geom_bar(data=whole_fe_elec %>% filter(period==2030) , aes(x=scen_name,y=value,group=variable),position = "stack",stat = "identity")+scale_fill_manual(values=plotstyle(plotvar_1))+
-  facet_grid(~model)+
-    theme(strip.text.x = element_text(angle = 90,size = 8),axis.text.x = element_text(angle = 90, hjust = 1))+
-  labs(
-    x="Scenario",
-    y = "Final Energy (EJ/yr) in 2030")
 
 #### LINE PLOT
 #line_type_1(whole_fe_elec,hist_fe_elec)
-line_type_2(whole_fe_elec,hist_fe_elec)
+line_type_2(whole_fe_elec,hist_fe_elec)+theme(axis.text=element_text(size=14), axis.title=element_text(size=18,face="bold"))
+
+ggsave("final_energy_elec.svg",device = "svg",height=5,width=6)
 
 ```
 
@@ -539,9 +730,35 @@ geom_line(data = whole_fe_elec_1 %>% filter(!model %in% c("India MARKAL","AIM/En
 ```
 
 
-### Transmission losses
-```{r transmission loss,warning=FALSE,fig.show='hold',out.width="50%"}
+### Transmission loses
+```{r transmission loss,warning=FALSE,fig.show='hold'}
 #### DATA
+plotvar_1 <- c("Secondary Energy|Electricity|Biomass|w/ CCS",
+             "Secondary Energy|Electricity|Biomass|w/o CCS",
+             "Secondary Energy|Electricity|Other",
+             "Secondary Energy|Electricity|Geothermal",
+             "Secondary Energy|Electricity|Ocean",
+             "Secondary Energy|Electricity|Oil",
+             "Secondary Energy|Electricity|Hydro",
+             "Secondary Energy|Electricity|Nuclear",
+             "Secondary Energy|Electricity|Solar",
+             "Secondary Energy|Electricity|Wind",
+             "Secondary Energy|Electricity|Gas|w/ CCS",
+             "Secondary Energy|Electricity|Gas|w/o CCS",
+             "Secondary Energy|Electricity|Coal|w/ CCS",
+             "Secondary Energy|Electricity|Coal|w/o CCS")
+whole_se_elec <- whole %>% filter(variable %in% plotvar_1 )
+
+### Total Secondary Energy of Electricity by adding all SE techs
+whole_se_elec_sum <- whole_se_elec %>% 
+  group_by(model, scenario,unit, period,modscen, model_scope, scen_name,region) %>% 
+  summarise(value=sum(value)) %>% 
+  mutate(variable="Secondary Energy|Electricity")
+
+whole_fe_elec <- whole %>% filter(variable=="Final Energy|Electricity")
+
+
+
 whole_fe_elec <- whole_fe_elec %>% 
   arrange(model,scenario)
 whole_se_elec_sum <- whole_se_elec_sum %>% 
@@ -549,7 +766,18 @@ whole_se_elec_sum <- whole_se_elec_sum %>%
 
 whole_se_elec_eff <- transform(whole_se_elec_sum,efficiency=whole_fe_elec$value/whole_se_elec_sum$value) 
 
-
+# Historical SE 
+ hist_se_elec_var <- c( "SE|Electricity|Biomass (EJ/yr)",    
+    "SE|Electricity|Coal (EJ/yr)" ,      
+    "SE|Electricity|Gas (EJ/yr)"    ,    
+  "SE|Electricity|Geothermal (EJ/yr)",  "SE|Electricity|Hydro (EJ/yr)" ,     
+"SE|Electricity|Oil (EJ/yr)"       ,  "SE|Electricity|Solar (EJ/yr)" ,     
+ "SE|Electricity|Nuclear (EJ/yr)"   ,  "SE|Electricity|Wind (EJ/yr)"    )   
+hist_se_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015), Variable %in% hist_se_elec_var)
+# summing up
+hist_se_elec_sum <- hist_se_elec %>% 
+  group_by(Region,Year) %>% 
+  summarise(Value=sum(Value))
 hist_elec_eff <- transform(hist_se_elec_sum,efficiency=hist_fe_elec$Value/Value)
 
 #### PLOT
@@ -558,7 +786,7 @@ ggplot()+
 geom_line(data = whole_se_elec_eff %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=efficiency,group=interaction(model,scen_name),color=model,linetype=scen_name))+
     labs(
     x = "Year" ,
-    y = "Elec. Efficiency",
+    y = "Electrical Efficiency",
     color = "Global Model",
     alpha="National Model",
     linetype = "Scenario Type")+
@@ -569,13 +797,83 @@ geom_line(data = whole_se_elec_eff %>% filter(!model %in% c("India MARKAL","AIM/
 ```
 
 ### Capacity
+#### AIM ENDUSE capacity
+```{r AIM_Enduse coal capacity,warning=FALSE,fig.show='hold'}
+### Capacity factor for India AIM/ENDUSE and Capacity for Delayed Section
+
+whole_se_elec_coal <- whole %>% filter(variable %in% c("Secondary Energy|Electricity|Coal|w/o CCS",
+                                                       "Secondary Energy|Electricity|Coal|w/ CCS"))
+
+whole_se_elec_coal_2 <- whole_se_elec_coal %>%
+  filter(model %in% c("AIM/Enduse 3.0"),variable=="Secondary Energy|Electricity|Coal|w/o CCS",scen_name=="Early action") 
+
+
+whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/o CCS")) 
+whole_coal_cap_2 <- whole_coal_cap %>% 
+  filter(model %in% c("AIM/Enduse 3.0"))
+
+
+whole_cap_fac <- whole_coal_cap_2 %>% 
+  group_by(modscen) %>% 
+  mutate(cap_factor = whole_se_elec_coal_2$value*277777.778/(value*8760))
+
+whole_se_elec_coal_3 <- whole_se_elec_coal %>% 
+  filter(model %in% c("AIM/Enduse 3.0"),scen_name=="Delayed action",variable=="Secondary Energy|Electricity|Coal|w/o CCS") 
+whole_se_elec_coal_3 <- whole_se_elec_coal_3 %>% 
+  mutate(capacity=whole_se_elec_coal_3$value*277777.778/(whole_cap_fac$cap_factor*8760))%>% 
+  select(model, scenario,unit, period,modscen, variable, model_scope, scen_name,region,capacity) %>% 
+  rename_(value=10)
+
+whole_se_elec_coal_3$variable <- "Capacity|Electricity|Coal|w/o CCS"
+
+
+```
+
+#### Total Capacity
+```{r}
+source("plotstyle.R")
+plotvar_1 <- c("Capacity|Electricity|Biomass|w/ CCS",
+             "Capacity|Electricity|Biomass|w/o CCS",
+             "Capacity|Electricity|Other",
+             "Capacity|Electricity|Geothermal",
+             "Capacity|Electricity|Ocean",
+             "Capacity|Electricity|Oil",
+             "Capacity|Electricity|Hydro",
+             "Capacity|Electricity|Nuclear",
+             "Capacity|Electricity|Solar|PV",
+             "Capacity|Electricity|Wind",
+             "Capacity|Electricity|Gas|w/ CCS",
+             "Capacity|Electricity|Gas|w/o CCS",
+             "Capacity|Electricity|Coal|w/ CCS",
+             "Capacity|Electricity|Coal|w/o CCS")
+whole_cap <- whole %>% filter(variable %in% plotvar_1)
+whole_cap <- rbind(whole_cap,whole_se_elec_coal_3)
+
+ggplot()+
+  geom_bar(data=whole_cap %>% filter(period==2030), aes(x=model,y=value, group=variable,fill=variable), position="fill",stat = "identity")+
+  labs(
+    x = "Model name" ,
+    y = "Generation in 2030 (EJ/yr)",
+    fill = "High Carbon",
+    alpha = "Model Scope"
+  ) +
+  # theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+   scale_fill_manual(values=plotstyle(plotvar_1))+
+  #scale_alpha_discrete(range = c(0.95, 0.55))
+  facet_grid(scen_name~model_scope,scales="free",space = "free_x")+geom_hline(yintercept = 0.4)
+```
+
+
 #### Coal Capacity
 ```{r coal_plant_eff,warning=FALSE,fig.show='hold',out.width="50%"}
 
-whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/o CCS","Capacity|Electricity|Coal|w/ CCS")) %>% group_by(region,unit,period,modscen,model_scope,scenario,model_scope,model,scen_name) %>% 
-  summarise(value=sum(value)) %>% 
-  mutate(variable="Capacity|Electricity|Coal")# name everything coal
+whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/o CCS"))
 
+# since whole_coal_cap doesn't contain values for AIM/ENDUSE Delayed Scenario, 
+whole_coal_cap_2 <- rbind(whole_coal_cap,whole_se_elec_coal_3) 
+
+  
  
 # Current Capacity 
 hist_coal_cap <- hist_and_botmup%>% filter(Region=="IND", Source =="EndCoal")
@@ -594,15 +892,17 @@ hist_2 <- data.frame(energy=rep("coal",11),Year=c(2006:2016),value=c(77003.79,
 184587
 ))
 
-  # line_type_1(whole_coal_cap,hist_coal_cap)
-line_type_2(whole_coal_cap,hist_coal_cap[hist_coal_cap$Variable=="Operating",])+
-    annotate("point",y = hist_2$value/1000,x=hist_2$Year,color="red")+
+
+line_type_2(whole_coal_cap_2,hist_coal_cap[hist_coal_cap$Variable=="Operating",])+
+    geom_line(data = hist_2,aes(y = value/1000,x=Year),color="black",size=1.5)+
       geom_hline(yintercept=hist_coal_cap[hist_coal_cap$Variable=="Operating",]$Value)+
         geom_text(x=2015,y=230,aes(label="Operating"),check_overlap = T)+
           geom_hline(yintercept =  hist_coal_cap[hist_coal_cap$Variable=="Operating",]$Value+hist_coal_cap[hist_coal_cap$Variable=="Construction",]$Value)+
             geom_text(x=2015,y=270,aes(label="Under Construction"),check_overlap = T)+
-              geom_hline(yintercept = hist_coal_cap[hist_coal_cap$Variable=="Operating",]$Value+hist_coal_cap[hist_coal_cap$Variable=="Announced + Pre-permit + Permitted",]$Value)+
-  geom_text(x=2015,y=300,aes(label="Under construction + planned"),check_overlap = T)
+              geom_hline(yintercept = hist_coal_cap[hist_coal_cap$Variable=="Operating",]$Value+hist_coal_cap[hist_coal_cap$Variable=="Announced + Pre-permit + Permitted",]$Value+hist_coal_cap[hist_coal_cap$Variable=="Construction",]$Value)+
+  geom_text(x=2020,y=340,aes(label="Under construction + planned"),check_overlap = T)+
+  labs(y="Coal Capacity (GW)")+theme(axis.title=element_text(size=14,face="bold"))
+ggsave("coalcapacity.svg",device = "svg",height=5,width = 6)
 
   
 
@@ -619,8 +919,6 @@ whole_coal_cap_add <- whole_coal_cap %>%
   mutate(period="2020-2030")
 
   
-
-# line_type_2(whole_coal_cap_add,hist_emi)
 
 
 hist_coal_cap <- hist_and_botmup %>% filter(Source=="EndCoal",Region=="IND", Variable %in% c("Operating","Construction","Announced + Pre-permit + Permitted")) %>% 
@@ -697,7 +995,7 @@ whole_pe_coal_elec <- whole %>%
                   filter(variable=="Primary Energy|Coal|Electricity", !modscen %in% c("AIM/Enduse 3.0 - INDC2030_low_V3" ,"AIM/Enduse 3.0 - NPi2020_low_V3"))%>% 
                   arrange(modscen)
 whole_se_coal_elec <- whole %>% 
-                      filter(variable %in% c("Secondary Energy|Electricity|Coal"),!model %in% c("COPPE-COFFEE 1.0")) %>%
+                      filter(variable %in% c("Secondary Energy|Electricity|Coal")) %>%
                       arrange(modscen)
 
 whole_se_coal_elec_eff <- transform(whole_se_coal_elec,efficiency=whole_se_coal_elec$value/whole_pe_coal_elec$value) %>% 
@@ -731,11 +1029,13 @@ whole_se_elec_coal_2 <- whole_se_elec_coal %>%
     arrange(modscen)
 
  
+  
+ 
 whole_cap_factor$cap_factor = whole_se_elec_coal_2$value*277777.778/(whole_cap_factor$value*8760)   
 whole_cap_factor <- whole_cap_factor %>% filter(value!=0)
 
 ggplot()+
-  geom_line(data = whole_cap_factor, aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=scen_name,color=model)) +
+  geom_line(data = whole_cap_factor, aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=model_scope,color=model,alpha=scen_name)) +
    labs(
     x = "Year" ,
     y = "Capacity Factor",
@@ -749,20 +1049,38 @@ ggplot()+
 
 
 
+
 ### Capital Costs
 #### Capital Cost of Solar PV 
 ```{r capital cost solar,message=FALSE,warning=FALSE,error=FALSE,purl=FALSE}
 #plot capital cost
-plotvar <- c("Capital Cost|Electricity|Solar|PV","Capital Cost|Electricity|Solar")
-
+# plotvar <- c("Capital Cost|Electricity|Wind|Onshore")
+plotvar <- c("Capital Cost|Electricity|Gas|w/o CCS")
 #plotvar <- c("Capital Cost|Electricity|Coal|w/o CCS","Capital Cost|Electricity|Solar|PV" )
 whole_cap_cost <- whole[whole$variable==plotvar,]
 localrate = 0.02 #https://www.xe.com/currencycharts/?from=INR&to=USD&view=10Y
 whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value <- whole_cap_cost[whole_cap_cost$model %in% c("India MARKAL","AIM/Enduse 3.0"),]$value*localrate
 proj_iea <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2015:2040),Variable =="spv",Source=="IEA_WEO") 
 
+  ggplot()+
+  geom_line(data = whole_cap_cost %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model),size=1) +
+geom_line(data = whole_cap_cost %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"),period<2051), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name))+
+    labs(
+    x = "Year" ,
+    y = paste(whole_cap_cost$variable,"(",whole_cap_cost$unit,")"),
+    color = "Global Model",
+    alpha="National Model",
+    linetype = "Scenario Type")+
+  theme_bw()+ 
+  coord_cartesian(xlim = c(2005,2050))+
+  # scale_colour_brewer(palette = "Set1")+
+  scale_alpha_discrete(range = c(0.95, 0.60))
+  
+  # +
+  #   geom_point(data = proj_iea%>%mutate(dummy="IEA"),aes(x = as.numeric(as.character(Year)),y=Value,fill=dummy),size=1.5,shape=17)
+
 #line_type_1(whole_cap_cost,proj_iea)
-line_type_2(whole_cap_cost,proj_iea)
+# line_type_2(whole_cap_cost,proj_iea)
 ```
 
 #### Capital Cost of Wind onshore
@@ -806,6 +1124,8 @@ scale_color_manual(values = myColors)
 ```
 #### Primary Energy Coal for Electricity
 ```{r}
+
+whole_pe_fossil <- whole %>% filter(variable %in% c("Primary Energy|Coal|Electricity","Primary Energy|Gas|Electricity"))
 ggplot()+
   geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Coal|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
  labs(
@@ -816,6 +1136,7 @@ ggplot()+
 
 #### Primary Energy Gas for Electricity
 ```{r}
+whole_pe_fossil <- whole %>% filter(variable %in% c("Primary Energy|Coal|Electricity","Primary Energy|Gas|Electricity"))
 ggplot()+
   geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Gas|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
  labs(
