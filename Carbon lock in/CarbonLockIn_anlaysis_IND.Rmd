@@ -32,7 +32,7 @@ library(RColorBrewer)
 library(knitr)
 ```
 
-```{r all_data,include=FALSE,eval=FALSE,message=FALSE,purl=FALSE}
+```{r all_data,include=FALSE,eval=FALSE,message=FALSE,purl=FALSE,warning=FALSE}
 #read in data
 # all <- invisible(fread("cdlinks_compare_20180508-032045.csv",header=TRUE)) #seems to be missing the V3 variants
 # all <- invisible(fread("cdlinks_compare_20180810-010937.csv",header=TRUE)) #only MESSAGE
@@ -189,8 +189,8 @@ line_type_1 <- function(data_s,hist_s){
 
 line_type_2 <- function(data_s,hist_s){
   ggplot()+
-  geom_line(data = data_s %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0"),period>=2015), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model),size=1) +
-geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"),period<2051,period>=2015), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name))+
+  geom_line(data = data_s %>% filter(model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),linetype=scen_name,alpha=model),size=1) +
+geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0")), aes(x=period,y=value,group=interaction(model,scen_name),color=model,linetype=scen_name))+
     labs(
     x = "Year" ,
     y = paste(data_s$variable,"(",data_s$unit,")"),
@@ -317,30 +317,7 @@ geom_ribbon(data = whole_emi_elec_share_m %>% filter(model_scope=="national",per
 line_type_2(whole_emi_elec_share,hist_emi_elec_share)
 
 ```
-#### Emissions Intensity
-```{r}
-#### CO2 per GWh"
-whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
-whole_emi_elec <- whole_emi_elec %>%  arrange(modscen)
 
-try_1 <- whole_se_elec_sum
-try_1$value <- (try_1$value*277777.78) # converting EJ to GWh
-
-try_1 <- try_1 %>% arrange(modscen)
-
-try_1 <- transform(try_1,emissionsperGwh=((whole_emi_elec$value)*1000)/try_1$value )# emissions are in MtCO2
-
-try_1$variable <- "Emissions Intensity"
-try_1$unit <- "kgCO2/kWh"
-try_1$value <- try_1$emissionsperGwh
-
-try_2 <- hist_se_elec_sum
-try_2$Value <- (try_2$Value*277777.78) # converting EJ to GWh
-try_2 <- transform(try_2,emissionsperGwh=((hist_emi_elec$Value)*1000)/try_2$Value )# emissions are in MtCO2
-try_2$Value <- try_2$emissionsperGwh
-line_type_2(try_1,try_2)+theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))
-ggsave("emissions_intensity.svg",device = "svg",height=5,width = 6)
-```
 
 
 #### Cumulative Emissions 2011-2050
@@ -680,7 +657,30 @@ ggplot()+
 
 ```
 
+#### Emissions Intensity
+```{r,message=FALSE,warning=FALSE}
+#### CO2 per GWh"
+whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
+whole_emi_elec <- whole_emi_elec %>%  arrange(modscen)
 
+try_1 <- whole_se_elec_sum
+try_1$value <- (try_1$value*277777.78) # converting EJ to GWh
+
+try_1 <- try_1 %>% arrange(modscen)
+
+try_1 <- transform(try_1,emissionsperGwh=((whole_emi_elec$value)*1000)/try_1$value )# emissions are in MtCO2
+
+try_1$variable <- "Emissions Intensity"
+try_1$unit <- "kgCO2/kWh"
+try_1$value <- try_1$emissionsperGwh
+
+try_2 <- hist_se_elec_sum
+try_2$Value <- (try_2$Value*277777.78) # converting EJ to GWh
+try_2 <- transform(try_2,emissionsperGwh=((hist_emi_elec$Value)*1000)/try_2$Value )# emissions are in MtCO2
+try_2$Value <- try_2$emissionsperGwh
+line_type_2(try_1,try_2)+theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))
+ggsave("emissions_intensity.svg",device = "svg",height=5,width = 6)
+```
 ### Final Energy of Electricity
 ```{r Final energy,message=FALSE,warning=FALSE}
 ######### DATA
@@ -866,7 +866,7 @@ ggplot()+
 
 
 #### Coal Capacity
-```{r coal_plant_eff,warning=FALSE,fig.show='hold',out.width="50%"}
+```{r coal_plant_eff,warning=FALSE,fig.show='hold',out.width="50%",warning=FALSE}
 
 whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/o CCS"))
 
@@ -909,7 +909,7 @@ ggsave("coalcapacity.svg",device = "svg",height=5,width = 6)
 ```
 
 #### Cumulative Coal Capacity
-```{r}
+```{r,message=FALSE,warning=FALSE}
 whole_coal_cap <- whole %>%  filter(variable=="Capacity|Electricity|Coal|w/o CCS" )
 whole_coal_cap_add <- whole_coal_cap %>% 
   filter(period %in% c(2020,2030)) %>% 
@@ -1018,24 +1018,23 @@ ggplot()+
 
 ```{r}
  # removing observations in whole_se_coal that are not in whole_cap_coal
-#
-whole_se_elec_coal_2 <- whole_se_elec_coal %>%
-  filter(!modscen %in% c("COPPE-COFFEE 1.0 - NPi2020_1000_V3","COPPE-COFFEE 1.0 - INDC2030i_1000_V3")) %>% 
-  arrange(modscen)
+
+whole_se_elec_coal_2 <- whole_se_elec_coal %>% filter(variable!="Secondary Energy|Electricity|Coal|w/ CCS") %>%  arrange(modscen)
+
+whole_coal_cap <- whole %>% filter(variable %in% c("Capacity|Electricity|Coal|w/o CCS"))
+
+# since whole_coal_cap doesn't contain values for AIM/ENDUSE Delayed Scenario, 
+whole_coal_cap <- rbind(whole_coal_cap,whole_se_elec_coal_3) 
+
+whole_cap_factor <- whole_coal_cap %>%   arrange(modscen)
 
 
- whole_cap_factor <- whole_coal_cap %>%
-  filter(!modscen %in% c("AIM/Enduse 3.0 - NPi2020_low_V3")) %>% 
-    arrange(modscen)
-
- 
-  
- 
 whole_cap_factor$cap_factor = whole_se_elec_coal_2$value*277777.778/(whole_cap_factor$value*8760)   
 whole_cap_factor <- whole_cap_factor %>% filter(value!=0)
 
+
 ggplot()+
-  geom_line(data = whole_cap_factor, aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=model_scope,color=model,alpha=scen_name)) +
+  geom_line(data = whole_cap_factor, aes(x=period,y=cap_factor,group=interaction(model,scen_name),linetype=model_scope,color=model)) +
    labs(
     x = "Year" ,
     y = "Capacity Factor",
@@ -1046,8 +1045,6 @@ ggplot()+
   coord_cartesian(xlim = c(2005,2050))
 
 ```
-
-
 
 
 ### Capital Costs
