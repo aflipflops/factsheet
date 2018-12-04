@@ -3,9 +3,11 @@ title: "Carbon Lock-in task CD LINKS"
 author: "Aman Malik and Christoph Bertram"
 date:   "15 October 2018"  
 output: 
-html_document:
-  toc: true
-  toc_depth: 2
+  html_document:
+    theme: paper
+    toc: true
+    toc_float:
+      collapsed: false
 ---
 
 ```{r global settings, include=FALSE}
@@ -30,6 +32,7 @@ library(reshape)
 library(data.table)
 library(RColorBrewer)
 library(knitr)
+library(mip)
 ```
 
 ```{r all_data,include=FALSE,eval=FALSE,message=FALSE,purl=FALSE,warning=FALSE}
@@ -201,7 +204,7 @@ geom_line(data = data_s %>% filter(!model %in% c("India MARKAL","AIM/Enduse 3.0"
   coord_cartesian(xlim = c(2005,2050),ylim =c(1.3*min(data_s$value[data_s$period<2050]),1.3*max(data_s$value[data_s$period<2050])))+
   scale_colour_manual(values = myColors)+
   # scale_colour_brewer(palette = "Set1")+
-  scale_alpha_discrete(range = c(0.95, 0.60))+
+  scale_alpha_discrete(range = c(0.90, 0.60))+
     geom_line(data = hist_s%>%mutate(dummy="Historical"),aes(x = as.numeric(as.character(Year)),y=Value,fill=dummy),size=1.5,shape=17)
  
   # ggsave(file=paste(gsub(c("\\||\\/"),"_",unique(data_s$variable)),"_2",".png",sep=""))
@@ -264,12 +267,16 @@ hist_emi_elec <- hist_and_botmup %>% filter(Region=="IND", Year %in% c(2005:2015
 #line_type_1(whole_emi_elec,hist_emi_elec)
 # WITH RIBBONS
 
-line_type_2(whole_emi_elec,hist_emi_elec)+
- geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="global",period>=2015),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
-geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="national",period>=2015),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")+coord_cartesian(ylim=c(0,2500))+ labs(y="CO2 Emissions from Electricity  (MtCO2/yr)")+theme(axis.text=element_text(size=12), axis.title=element_text(size=13,face="bold"))
+line_type_2(whole_emi_elec %>% filter(scen_name %in% c("Delayed action")),hist_emi_elec)+
+  coord_cartesian(ylim=c(0,2500),xlim=c(2005,2050))+ labs(y="CO2 Emissions from Electricity  (MtCO2/yr)")+theme(axis.text=element_text(size=12), axis.title=element_text(size=13,face="bold"),legend.position="none")
+
+
+# +
+#  geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="global",period>=2015),aes(x =period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="blue")+
+# geom_ribbon(data = whole_emi_elec_m %>% filter(model_scope=="national",period>=2015),aes(x = period,ymin = minimum,ymax=maximum),alpha = 0.1,fill="orange")
 
 # WTHOUT RIBBONS
-line_type_2(whole_emi_elec,hist_emi_elec)
+line_type_2(whole_emi_elec,hist_emi_elec)+theme(axis.text=element_text(size=12), axis.title=element_text(size=13,face="bold"))
 
 # SAVING
 ggsave(filename = "energy_emissions_1.svg",height=5, width=6,device = "svg")
@@ -325,16 +332,26 @@ line_type_2(whole_emi_elec_share,hist_emi_elec_share)
 #### NEED TO CORRECT
 ### DATA 
 whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
-whole_cum <- whole_emi_elec %>%
-  filter(period>=2010 & period<2035) %>%
-  group_by(model,scen_name) %>%
-  mutate(cumsum=cumsum(value/1000)) %>%
-  arrange(cumsum,desc(cumsum))
-  # whole_cum <- whole_emi_elec %>%
-  # filter(period>2030 & period<2055) %>%
-  # group_by(model,scen_name) %>%
-  # mutate(cumsum=cumsum(value/1000)) %>%
-  # arrange(cumsum,desc(cumsum))
+whole_emi_elec <- whole_emi_elec %>% filter(scen_name=="Early action")
+
+try_2 <- transform(unique(whole_emi_elec$modscen),cumsum=whole_emi_elec[which(whole_emi_elec$period==2010),]$value*2.5 + whole_emi_elec[which(whole_emi_elec$period==2015),]$value*5 + 
+           whole_emi_elec[which(whole_emi_elec$period==2020),]$value*5 + whole_emi_elec[which(whole_emi_elec$period==2025),]$value*5 +
+           whole_emi_elec[which(whole_emi_elec$period==2030),]$value*2.5
+           )
+whole_emi_elec <- whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",]
+whole_emi_elec <- whole_emi_elec %>% filter(scen_name=="Delayed action")
+
+try_3 <- transform(unique(whole_emi_elec$modscen),cumsum=whole_emi_elec[which(whole_emi_elec$period==2010),]$value*2.5 + whole_emi_elec[which(whole_emi_elec$period==2015),]$value*5 + 
+           whole_emi_elec[which(whole_emi_elec$period==2020),]$value*5 + whole_emi_elec[which(whole_emi_elec$period==2025),]$value*5 +
+           whole_emi_elec[which(whole_emi_elec$period==2030),]$value*2.5)
+
+           
+names(try_2)[1] <- "modscen"
+names(try_3)[1] <- "modscen"
+
+try <- rbind(try_2,try_3)
+whole_cum <- left_join( whole[whole$variable=="Emissions|CO2|Energy|Supply|Electricity",],try,by="modscen")
+
 
 ## Making table
 whole_cum_table <- whole_cum %>% 
@@ -344,25 +361,122 @@ whole_cum_table <- whole_cum %>%
   spread(c("scen_name"),cumsum)
 
 
-# ggplot()+
-#   geom_bar(data=whole_cum %>% filter(period==2050) , aes(x=model,y=cumsum, group=interaction(model,scen_name),fill=scen_name),position="dodge", stat = "identity")+
-#   labs(
-#     x = "Model name" ,
-#     y = "Cumulative Emissions/Power sector (2011-2050) (GtCO2)",
-#     fill = "Scenario Type",
-#     alpha = "Model Scope"
-#   ) +
-#   # theme_bw()+
-#   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-#   #scale_alpha_discrete(range = c(0.95, 0.55))
-#   facet_grid(~model_scope,scales="free",space = "free_x")
+
+ggplot()+
+   geom_bar(data=whole_emi_elec %>% filter(period==2030)  , aes(x=model,y=value/1000, fill=scen_name),position="dodge", stat = "identity")+
+   labs(
+     x = "Model name" ,
+     y = "Cum. Emissions/Power sector (2011-2030) (GtCO2)",
+     fill = "Scenario Type",
+     alpha = "Model Scope"
+   ) +
+    theme_bw()+
+   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+   scale_alpha_discrete(range = c(0.95, 0.55)) +
+  facet_grid(~model_scope,scales="free",space = "free_x")
+
+# Extracting relevant variables
+whole_cum_energy <- whole[whole$variable %in% c("Emissions|CO2|Energy|Supply|Electricity","Emissions|CO2|Energy|Demand|Industry","Emissions|CO2|Energy|Demand|Residential and Commercial","Emissions|CO2|Energy|Demand|Transportation"), ]
+
+# creating empty data frame
+try_3 <- data.frame(modscen=factor(),
+                 cumsum=double(),
+                 variable=factor(),
+                 scen_name=factor(),
+                 stringsAsFactors=FALSE)
+# storing cumulative  emissions from 2015 to 2030 into cumsum
+for (j in unique(whole_cum_energy$scen_name)){
+ for (i in unique(whole_cum_energy$variable)){
+   whole_cum_energy_2 <- whole_cum_energy %>% 
+     filter(scen_name==j & variable==i)
+    # try_2 <- transform(unique(whole_cum_energy_2$modscen),cumsum= whole_cum_energy_2[which(whole_cum_energy_2$period==2015),]$value*2.5 + 
+    #        whole_cum_energy_2[which(whole_cum_energy_2$period==2020),]$value*5 + whole_cum_energy_2[which(whole_cum_energy_2$period==2025),]$value*5 +
+    #        whole_cum_energy_2[which(whole_cum_energy_2$period==2030),]$value*2.5)
+         try_2 <- transform(unique(whole_cum_energy_2$modscen),cumsum=            whole_cum_energy_2[which(whole_cum_energy_2$period==2030),]$value*1)
+   names(try_2)[1] <- "modscen"
+   try_2$variable <- i
+   try_2$scen_name <- j
+   try_3 <- rbind(try_3,try_2)
+ }
+}
+
+# adding cumsum to original dataframe
+whole_cum <- left_join( whole_cum_energy,try_3,by=c("modscen","variable","scen_name"))
+
+# whole_cum_2 <- transform(whole_cum,excess=whole_cum[whole_cum$scen_name=="Delayed action",]$cumsum-whole_cum[whole_cum$scen_name=="Early action",]$cumsum)
+
+# spreading data
+whole_cum_3 <- spread(data = whole_cum,key = scen_name, value = cumsum)
+
+# selected only delayed emissions and removing NA
+whole_cum_4 <- whole_cum_3 %>% 
+  select(1:10)
+whole_cum_4 <- drop_na(whole_cum_4,10)
+
+whole_cum_5 <- whole_cum_3 %>% 
+  select(c(1:9,11))
+whole_cum_5 <- drop_na(whole_cum_5,10)
+
+whole_cum_6 <- cbind(whole_cum_4,whole_cum_5[10])
+whole_cum_7 <- whole_cum_6 %>% 
+  mutate(Excess= `Delayed action`- `Early action`)
+
+  
+whole_cum_8 <- gather(whole_cum_7, scen_name=c('Excess','Early action','Delayed action'),key = scen_name,value = value)
+whole_cum_8 <- whole_cum_8 %>% filter(period==2005)
+#whole_cum_8$variable <- mip::shorten_legend(whole_cum_8$variable,35)
+
+# source("plotstyle.R")
+
+  ggplot()+
+   geom_bar(data=whole_cum_8  , aes(x=scen_name,y=value/1000, fill=variable),position="stack", stat = "identity")+
+   labs(
+     x = "Model name" ,
+     y = "Cum. Emissions (2016-2030) (GtCO2)",
+     fill = "Scenario Type",
+     alpha = ""
+   ) +
+    theme_bw()+
+     scale_alpha_discrete(range = c(0.95, 0.55)) +
+     scale_fill_manual(values=plotstyle(unique(whole_cum_8$variable)))+
+  facet_grid(~model_scope+model,scales="free",space = "free_x",labeller = label_wrap_gen(width =10, multi_line = TRUE))+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1),legend.direction = "vertical",legend.position = "bottom" )
+  
+    ggplot()+
+   geom_bar(data=  whole_cum_energy %>% filter(period==2030)  , aes(x=scen_name,y=value/1000, fill=variable),position="stack", stat = "identity")+
+   labs(
+     x = "Model name" ,
+     y = "Cum. Emissions (2016-2030) (GtCO2)",
+     fill = "Scenario Type",
+     alpha = ""
+   ) +
+    theme_bw()+
+     scale_alpha_discrete(range = c(0.95, 0.55)) +
+     scale_fill_manual(values=plotstyle(unique(whole_cum_8$variable)))+
+  facet_grid(~model_scope+model,scales="free",space = "free_x",labeller = label_wrap_gen(width =10, multi_line = TRUE))+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1),legend.direction = "vertical",legend.position = "bottom" )
+  
+
+
+
+# whole_cum_energy <- whole_cum_energy %>% 
+#   filter(scen_name=="Early action") %>% 
+#   group_by(modscen,variable) %>% 
+  # mutate(cumsum=whole_cum_energy[which(whole_cum_energy$period==2015),]$value*2.5 + 
+  #          whole_cum_energy[which(whole_cum_energy$period==2020),]$value*5 + whole_cum_energy[which(whole_cum_energy$period==2025),]$value*5 +
+  #          whole_cum_energy[which(whole_cum_energy$period==2030),]$value*2.5)
+
+
+
+
+
 
 
 ```
 
 ### Total Secondary Energy of Electricity
 ```{r Secondary Energy,warning=FALSE,}
-source("plotstyle.R")
+# source("plotstyle.R")
 plotvar_1 <- c("Secondary Energy|Electricity|Biomass|w/ CCS",
              "Secondary Energy|Electricity|Biomass|w/o CCS",
              "Secondary Energy|Electricity|Other",
@@ -417,7 +531,7 @@ line_type_2(whole_se_elec_sum,hist_se_elec_sum)
 ```
 #### Secondary Energy Electricity high_carbon
 ```{r SE_high_carbon,message=FALSE,warning=FALSE}
-source("plotstyle.R")
+# source("plotstyle.R")
 ## high carbon fuels
 high_carbon <- c("Secondary Energy|Electricity|Gas|w/o CCS",
                  "Secondary Energy|Electricity|Coal|w/o CCS",
@@ -457,7 +571,7 @@ ggsave("high_carbon.svg",device = "svg",height=5,width = 6)
 
 #### Secondary Energy Electrictity low_carbon
 ```{r SE_low_carbon,message=FALSE,warning=FALSE}
-source("plotstyle.R")
+# source("plotstyle.R")
 ### low carbon fuels
 low_carbon <- c("Secondary Energy|Electricity|Coal|w/ CCS",
                  "Secondary Energy|Electricity|Gas|w/ CCS",
@@ -519,7 +633,7 @@ ggsave("lowcarbon.svg",device = "svg",height=5,width = 6)
 
 #### Secondary Energy coal
 ```{r SE_coal, message=FALSE,warning=FALSE}
-source("plotstyle.R")
+# source("plotstyle.R")
 whole_se_elec_coal <- whole %>% filter(variable %in% c("Secondary Energy|Electricity|Coal|w/o CCS",
                                                        "Secondary Energy|Electricity|Coal|w/ CCS")) %>% 
   group_by(model, scenario,unit, period,modscen, model_scope, scen_name,region) %>% 
@@ -555,11 +669,11 @@ ggplot()+
     y = "Secondary Energy|Electricity|Gas(EJ/yr)" )+ theme_bw()+
    annotate("point",x=c(2005:2015),y=hist_se_elec_gas$Value)
  
-line_type_2(whole_se_elec_gas,hist_se_elec_gas)+ labs(
+line_type_2(whole_se_elec_gas %>% filter(scen_name=="Delayed action"),hist_se_elec_gas )+ labs(
     x = "Year",
     y = "Secondary Energy|Electricity|Gas(EJ/yr)" )+theme(axis.text=element_text(size=10), axis.title=element_text(size=14,face="bold"))
 ggsave("elec_gas.svg",device = "svg",height=5,width = 6)
-source("plotstyle.R")
+# source("plotstyle.R")
 
 ```
 
@@ -678,7 +792,15 @@ try_2 <- hist_se_elec_sum
 try_2$Value <- (try_2$Value*277777.78) # converting EJ to GWh
 try_2 <- transform(try_2,emissionsperGwh=((hist_emi_elec$Value)*1000)/try_2$Value )# emissions are in MtCO2
 try_2$Value <- try_2$emissionsperGwh
-line_type_2(try_1,try_2)+theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))
+
+
+line_type_2(try_1 %>% filter(!scen_name %in% c("Delayed action"),model_scope=="global"),try_2)+ coord_cartesian(xlim=c(2005,2050),ylim=c(0,1))+ labs(y="Emissions Intensity (kgCO2/kWh)",x="Year")+theme(axis.text=element_text(size=12), axis.title=element_text(size=13,face="bold"),legend.position="none")
+  
+  
+  
+  theme(axis.text=element_text(size=12), axis.title=element_text(size=14,face="bold"))
+
+line_type_2(try_1 %>% filter(!scen_name %in% c("Early action","Delayed action")),try_2)
 ggsave("emissions_intensity.svg",device = "svg",height=5,width = 6)
 ```
 ### Final Energy of Electricity
@@ -831,7 +953,7 @@ whole_se_elec_coal_3$variable <- "Capacity|Electricity|Coal|w/o CCS"
 
 #### Total Capacity
 ```{r}
-source("plotstyle.R")
+# source("plotstyle.R")
 plotvar_1 <- c("Capacity|Electricity|Biomass|w/ CCS",
              "Capacity|Electricity|Biomass|w/o CCS",
              "Capacity|Electricity|Other",
@@ -893,12 +1015,10 @@ hist_2 <- data.frame(energy=rep("coal",11),Year=c(2006:2016),value=c(77003.79,
 ))
 
 
-line_type_2(whole_coal_cap_2,hist_coal_cap[hist_coal_cap$Variable=="Operating",])+
-    geom_line(data = hist_2,aes(y = value/1000,x=Year),color="black",size=1.5)+
+line_type_2(whole_coal_cap_2,hist_coal_cap[hist_coal_cap$Variable=="Operating",])+   geom_line(data = hist_2,aes(y = value/1000,x=Year),color="black",size=1.5)+
       geom_hline(yintercept=hist_coal_cap[hist_coal_cap$Variable=="Operating",]$Value)+
         geom_text(x=2015,y=230,aes(label="Operating"),check_overlap = T)+
-          geom_hline(yintercept =  hist_coal_cap[hist_coal_cap$Variable=="Operating",]$Value+hist_coal_cap[hist_coal_cap$Variable=="Construction",]$Value)+
-            geom_text(x=2015,y=270,aes(label="Under Construction"),check_overlap = T)+
+          geom_hline(yintercept =  hist_coal_cap[hist_coal_cap$Variable=="Operating",]$Value+hist_coal_cap[hist_coal_cap$Variable=="Construction",]$Value)+            geom_text(x=2015,y=270,aes(label="Under Construction"),check_overlap = T)+
               geom_hline(yintercept = hist_coal_cap[hist_coal_cap$Variable=="Operating",]$Value+hist_coal_cap[hist_coal_cap$Variable=="Announced + Pre-permit + Permitted",]$Value+hist_coal_cap[hist_coal_cap$Variable=="Construction",]$Value)+
   geom_text(x=2020,y=340,aes(label="Under construction + planned"),check_overlap = T)+
   labs(y="Coal Capacity (GW)")+theme(axis.title=element_text(size=14,face="bold"))
@@ -954,7 +1074,7 @@ plotvar_1 <- c("Capacity|Electricity|Biomass|w/ CCS",
              "Capacity|Electricity|Nuclear"
                )
 #Power capacity in 2030
-source("plotstyle.R")
+# source("plotstyle.R")
 
 whole_cap_elec <- whole[whole$variable %in% plotvar_1 & whole$period %in% c(2030,2050),]
 
@@ -1124,15 +1244,18 @@ scale_color_manual(values = myColors)
 
 whole_pe_fossil <- whole %>% filter(variable %in% c("Primary Energy|Coal|Electricity","Primary Energy|Gas|Electricity"))
 ggplot()+
-  geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Coal|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
+  geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Gas|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
  labs(
     x = "Year"
     )+ theme_bw()+
-   annotate("point",x=c(2005:2015),y=hist_pe_coal_elec$Value)+scale_color_manual(values = myColors)
+   annotate("point",x=c(2005:2015),y=hist_pe_gas_elec$Value)+scale_color_manual(values = myColors)
 ```
 
 #### Primary Energy Gas for Electricity
 ```{r}
+
+
+            
 whole_pe_fossil <- whole %>% filter(variable %in% c("Primary Energy|Coal|Electricity","Primary Energy|Gas|Electricity"))
 ggplot()+
   geom_line(data = whole_pe_fossil %>% filter(period<2050,variable=="Primary Energy|Gas|Electricity") , aes(x=period,y=value,group=interaction(model,scen_name),linetype=model_scope,color=model))+facet_grid(variable~scen_name)+
@@ -1142,4 +1265,33 @@ ggplot()+
 ```
 
 
+#### Primary Energy by source
+```{r}
+
+pe_var <- c("Primary Energy|Biomass",
+            "Primary Energy|Coal",
+            "Primary Energy|Gas"  ,
+            "Primary Energy|Hydro" ,
+            "Primary Energy|Nuclear" ,
+            "Primary Energy|Oil" ,
+            "Primary Energy|Solar",
+            "Primary Energy|Wind" )
+whole_pe_all <- whole %>% filter(variable %in% pe_var)
+
+ggplot()+
+  geom_bar(data=whole_pe_all %>% filter(period==2020,scen_name=="Delayed action") , aes(x=model,y=value, group=variable,fill=variable),stat = "identity",width = 0.5)+
+  labs(
+    x = "Model name" ,
+    y = "Share in Generation (2030)",
+    fill = "Scenario Type",
+    alpha = "Model Scope"
+  ) +
+  # theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),panel.grid.major = element_line(colour = "black"),axis.ticks.length = unit(.25, "cm"))+
+   scale_fill_manual(values=plotstyle(pe_var))+
+  scale_alpha_discrete(range = c(0.95, 0.55))+
+  facet_grid(~model_scope,scales="free",space = "free_x")
+  
+ 
+```
 
